@@ -48,6 +48,7 @@
 | Диагностика | `doctor.sh`, `fix-mic.sh` | Server/CORS/mic и восстановление |
 | Skills | `.opencode/skills/` | 11 `ovi-*` skills; см. [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md) |
 | Migration report | `V2_MIGRATION.md` | Evidence, статусы и remaining tasks |
+| Fix log | `FIXES.md` | Что чинили, почему, и разбор ошибок для будущей установки |
 
 `.opencode/plugins/voice/` — это loaded bundle, а не отдельный глобальный V1-каталог. Он
 поставляется целиком: `sync-plugin.sh` копирует entrypoints, `lib/`, `stt-server/`,
