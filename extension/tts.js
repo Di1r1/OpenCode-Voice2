@@ -223,7 +223,10 @@
     var authHeaders = deps.authHeaders || function () { return {}; };
     var settings = Object.assign({}, DEFAULTS);
     var logTail = [];
-    var stats = { events: 0, lastType: "", lastSid: "", finalized: 0, lastSkip: "", sourceState: "none" };
+    // finalized — сообщения ПРОЧИТАНЫ; spoken — реально ПОСТАВЛЕНЫ в озвучку.
+    // Раньше был только finalized, и в режиме manual он рос, хотя молчал:
+    // по такому числу нельзя понять, звучало что-то или нет.
+    var stats = { events: 0, lastType: "", lastSid: "", finalized: 0, spoken: 0, lastSkip: "", sourceState: "none" };
     var lastPoll = 0;
     var pollDirty = false; // событие message.*/session.* — опрос пора обновить
     var noVoiceRetries = 0;
@@ -462,7 +465,7 @@
         var raw = nm.text;
         if (!raw.trim()) return;
         if (!visibleMessageEl(nm.id) && !(nm.parentID && visibleMessageEl(nm.parentID))) {
-          dbg("poll: row not found, speaking anyway", nm.id, nm.parentID);
+          dbg("poll: нет в DOM, читаем из API (озвучка не зависит от вёрстки)", nm.id, nm.parentID);
         }
         var text = cleanForSpeech(raw);
         if (!text) return;
@@ -478,6 +481,8 @@
     }
 
     function enqueue(text) {
+      if (!text) return;
+      stats.spoken++;
       if (getPhase() !== "idle" || speaking) { pending = text; return; }
       speak(text);
     }
@@ -864,7 +869,7 @@
               sendResponse({
                 ok: true, tts: settings.tts, gateOk: gateOk, hasSource: !!source, speaking: speaking,
                 voices: (function () { try { return (win.speechSynthesis && win.speechSynthesis.getVoices() || []).length; } catch (e) { return -1; } })(),
-                sourceState: stats.sourceState, events: stats.events, lastType: stats.lastType,
+                sourceState: stats.sourceState, events: stats.events, lastType: stats.lastType, spoken: stats.spoken,
                 lastSid: stats.lastSid, finalized: stats.finalized, lastSkip: stats.lastSkip,
                 rows: (function () { try { return doc ? doc.querySelectorAll("[data-message-id]").length : -1; } catch (e) { return -1; } })(),
                 logTail: logTail.slice(-12)

@@ -364,7 +364,7 @@ async function refreshTtsStatus() {
       return;
     }
     el.textContent =
-      `gate:${s.gateOk} sse:${s.sourceState} events:${s.events} fin:${s.finalized} rows:${s.rows} voices:${s.voices}\n` +
+      `gate:${s.gateOk} sse:${s.sourceState} events:${s.events} fin:${s.finalized} said:${s.spoken} rows:${s.rows} voices:${s.voices}\n` +
       `last:${s.lastType || '-'} sid:${(s.lastSid || '').slice(-8)}\n` +
       (s.lastSkip ? `skip:${s.lastSkip}\n` : '') +
       ((s.logTail && s.logTail.length) ? s.logTail.slice(-5).join('\n') : '');
