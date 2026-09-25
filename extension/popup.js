@@ -75,6 +75,8 @@ const UI = {
     onServer: 'на сервере',
     emptyResp: '(пусто)',
     statusNA: 'статус недоступен (обновите страницу F5)',
+    ttsReady: 'озвучка готова (подробности — галочка «Отладка»)',
+    ttsWaiting: 'озвучка ждёт страницу OpenCode (F5)',
     testOk: '✅ Тест OK: "{text}"',
     testErr: '❌ Ошибка теста: {err}',
     healingServer: '🔧 Перезапускаю STT-сервер…',
@@ -131,6 +133,8 @@ const UI = {
     onServer: 'on server',
     emptyResp: '(empty)',
     statusNA: 'status unavailable (reload the page with F5)',
+    ttsReady: 'speech ready (tick Debug for details)',
+    ttsWaiting: 'speech is waiting for the OpenCode page (F5)',
     testOk: '✅ Test OK: "{text}"',
     testErr: '❌ Test error: {err}',
     healingServer: '🔧 Restarting STT server…',
@@ -309,7 +313,11 @@ ttsRateEl.addEventListener('input', () => {
   ttsRateVal.textContent = Number(ttsRateEl.value).toFixed(1);
   chrome.storage.local.set({ ttsRate: Number(ttsRateEl.value) });
 });
-ttsDebugEl.addEventListener('change', () => chrome.storage.local.set({ ttsDebug: ttsDebugEl.checked }));
+ttsDebugEl.addEventListener('change', () => {
+  chrome.storage.local.set({ ttsDebug: ttsDebugEl.checked }, () => {
+    if (typeof refreshTtsStatus === 'function') void refreshTtsStatus();
+  });
+});
 ttsVoiceEl.addEventListener('change', () => chrome.storage.local.set({ ttsVoice: ttsVoiceEl.value }));
 ttsServerVoiceEl.addEventListener('change', () => chrome.storage.local.set({ ttsServerVoice: ttsServerVoiceEl.value }));
 
@@ -344,6 +352,15 @@ async function refreshTtsStatus() {
     if (!tab || !tab.id) { el.textContent = t('noTab'); return; }
     const s = await chrome.tabs.sendMessage(tab.id, { type: 'ocv-tts-status' });
     if (!s || !s.ok) { el.textContent = t('noStatus'); return; }
+    // Галочка «Отладка» выключена — показываем одну строку вместо служебного
+    // дампа. Раньше подробный вывод рисовался ВСЕГДА, и переключатель ничего
+    // не делал: считалось, что настройка сломана.
+    var wantDebug = false;
+    try { wantDebug = (await chrome.storage.local.get({ ttsDebug: false })).ttsDebug === true; } catch (e) {}
+    if (!wantDebug) {
+      el.textContent = (s.gateOk && s.sourceState === 'open') ? t('ttsReady') : t('ttsWaiting');
+      return;
+    }
     el.textContent =
       `gate:${s.gateOk} sse:${s.sourceState} events:${s.events} fin:${s.finalized} rows:${s.rows} voices:${s.voices}\n` +
       `last:${s.lastType || '-'} sid:${(s.lastSid || '').slice(-8)}\n` +
