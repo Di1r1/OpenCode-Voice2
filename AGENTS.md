@@ -196,11 +196,15 @@ Cwd-dependent deployment gap закрыт:
   bundle (`<here>/../stt-server/`), и относительно исходников (`<here>/../../`);
 - `heal.ts` (`doctorScript()`) ищет `doctor.sh` в bundle и в `directory`;
 - `whisper.ts` и `text.ts` (`loadSpec()`) читают `../shared/stt-spec.json` из bundle;
+- `stt_server.py` (`_load_manifest()`) читает `../shared/tts-manifest.json` тем же путём
+  (`parents[1]/shared`) и отдаёт его на `GET /manifest`. Ключи `$comment` — служебные
+  пояснения для человека, наружу не отдаются. При битом JSON уходит в безопасный фолбэк,
+  поэтому поломка манифеста выглядит как «озвучка перестала фильтровать», а не как ошибка;
 - `test/deploy.test.mjs` валидирует **поставленный** bundle из постороннего temp-cwd: все
   ресурсы резолвятся внутри `.opencode/plugins/voice/`, а Python-путь `parents[1]/shared`
   совпадает с TS-путём `../shared`.
 
-`bash sync-plugin.sh --check` подтверждает совпадение всех 19 файлов и завершается exit `0`.
+`bash sync-plugin.sh --check` подтверждает совпадение 21 файла и завершается exit `0`.
 
 Что всё ещё нельзя объявлять готовым: UX-разница (auto-submit вместо вставки в редактор)
 и нежелательный model call для info-сабкоманд. Typecheck и серверный TTS закрыты.

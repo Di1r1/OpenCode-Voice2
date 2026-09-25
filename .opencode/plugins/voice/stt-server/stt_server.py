@@ -33,6 +33,40 @@ from flask import Flask, request, jsonify, send_file
 
 # --- Единый источник истины с TypeScript: voice-opencode-plugin/shared/stt-spec.json ---
 _SPEC_PATH = Path(__file__).resolve().parents[1] / "shared" / "stt-spec.json"
+# Манифест озвучки: переносимый контракт «что произносить, что нельзя».
+# Лежит рядом со спецификацией и так же уезжает в bundle через sync-plugin.sh,
+# поэтому политика озвучки переносится на другую машину вместе с плагином.
+_MANIFEST_PATH = Path(__file__).resolve().parents[1] / "shared" / "tts-manifest.json"
+_FALLBACK_MANIFEST = {
+    "version": 1,
+    "speak": {"mode": "manual", "marker": "🔈", "briefSentences": 2, "interChunkPauseMs": 220},
+    "alwaysVoicePrefixes": [],
+    "neverVoicePatterns": ["```", "http://", "https://", "/mnt/"],
+    "voice": {"engine": "server", "serverVoice": "", "rate": 1.0},
+    "limits": {"maxCharsPerChunk": 180, "maxTotalSeconds": 60},
+}
+
+
+def _load_manifest() -> dict:
+    """Читает shared/tts-manifest.json; при ошибке — безопасный фолбэк.
+
+    Ключи, начинающиеся с `$` (служебные комментарии), наружу не отдаются.
+    """
+    def _strip(node):
+        if isinstance(node, dict):
+            return {k: _strip(v) for k, v in node.items() if not k.startswith("$")}
+        if isinstance(node, list):
+            return [_strip(v) for v in node]
+        return node
+
+    try:
+        with open(_MANIFEST_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        merged = dict(_FALLBACK_MANIFEST)
+        merged.update({k: v for k, v in data.items() if not k.startswith("$")})
+        return _strip(merged)
+    except Exception:
+        return _strip(_FALLBACK_MANIFEST)
 _FALLBACK_SPEC = {
     "nonSpeechKeywords": [
         "музык", "music", "аплодисмент", "applause", "смех", "laugh", "тишин", "silence",
@@ -1526,6 +1560,19 @@ def beep_route():
     if freq > 0:
         threading.Thread(target=_play_beep, args=(freq,), daemon=True).start()
     return jsonify({"status": "ok", "freq": freq})
+
+
+@app.route("/manifest", methods=["GET"])
+def manifest_route():
+    """Манифест озвучки: {"status","version","speak","alwaysVoicePrefixes",...}.
+
+    Read-only, без rate-limit и логирования — как `/voices`. Расширение тянет
+    его при старте, поэтому переносимая политика «что озвучивать» живёт в
+    репозитории и переезжает вместе с плагином, а не настраивается вручную
+    на каждой машине.
+    """
+    return jsonify({"status": "ok", "source": "shared/tts-manifest.json",
+                    **_load_manifest()})
 
 
 @app.route("/speak", methods=["POST"])

@@ -170,16 +170,21 @@ python3 -m pytest        # текущий аудит: 65 collected, exit 0
 
 ## TTS и ограничения
 
-TTS — optional. В текущем health server сообщает:
+TTS — optional. Piper ставится через `./setup.sh --tts` и кладёт голоса в
+`~/.local/share/opencode-voice/tts/`. После установки health сообщает:
 
 ```text
 tts.enabled=true
-tts.available=false
+tts.available=true
 ```
 
-Piper отсутствует, поэтому server-side синтез сейчас не готов. Browser TTS и STT — отдельные
-пути; для server TTS нужно установить Piper/голоса или отключить
-`OPENCODE_VOICE_TTS`, затем перезапустить server.
+Проверить звук без браузера:
+
+```bash
+curl -s -X POST http://127.0.0.1:8765/speak \
+  -H 'Content-Type: application/json' -d '{"text":"Проверка."}' -o /tmp/tts.wav
+file /tmp/tts.wav     # RIFF ... WAVE audio
+```
 
 `small` на CPU ограничивает качество/скорость перевода, но не означает проблему V2 API или
 миграции.
@@ -188,6 +193,29 @@ TTS cache eviction выполняется по размеру; purge пропу�
 автоматической retention/rotation policy. Логи и cache могут содержать plaintext, поэтому
 держать их в private/protected directory, применять `0600` where feasible, rotation/retention или
 manual purge осознанно и redact перед sharing; настроенную rotation не обещать.
+
+### Политика озвучки приезжает манифестом
+
+Правила «что произносить» **не зашиты в расширение**. При старте `tts.js` один раз
+тянет `GET /manifest` и применяет результат через `applyManifest()`:
+
+| Поле манифеста | Что делает в расширении |
+|---|---|
+| `speak.marker` | заменяет константу `SPEAK_MARK` — метку можно сменить на любой символ |
+| `alwaysVoicePrefixes` | `alwaysSpoken()` — эти строки звучат без метки, даже в `manual` |
+| `neverVoicePatterns` | гасят строку, даже если метка стояла (код, ссылки, пути) |
+| `speak.interChunkPauseMs` | пауза между фразами |
+
+Порядок отбора в `pickSpoken()`: **маркер → обязательные префиксы → режим**. То есть
+пометка 🔈 всегда важнее режима, а `alwaysVoicePrefixes` — страховка на случай забытой
+метки.
+
+Манифест подтягивается **до** старта опроса (`startTicking()`), иначе первый ответ успел бы
+озвучиться по встроенным дефолтам. Если сервер недоступен или манифест битый — остаются
+дефолты, расширение не падает. Диагностика: в отладке `manifest: загружен` / `manifest: дефолты`.
+
+Правка политики — в `shared/tts-manifest.json`, затем `./sync-plugin.sh` и перезагрузка
+расширения. Подробности — [INSTALL.md](../INSTALL.md#51-манифест-озвучки-что-произносить-а-что-нельзя).
 
 ## Если микрофон недоступен
 

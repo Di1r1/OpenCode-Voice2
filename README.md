@@ -47,6 +47,13 @@ opencode serve --hostname 127.0.0.1
 остальных режимах — она важнее режима. Между фразами добавлена пауза, чтобы речь не звучала
 слитно.
 
+**Манифест озвучки.** Правила «что произносить, а что нельзя» лежат не в коде, а в
+`shared/tts-manifest.json` и переезжают вместе с плагином на любую машину. Помимо метки 🔈 там
+есть `alwaysVoicePrefixes` (строки на «Готово», «Ошибка», «Важно» звучат **всегда**, даже если
+метка забыта) и `neverVoicePatterns` (код, ссылки, пути и команды вслух не читаются, даже если
+метка стоит). Сервер отдаёт манифест на `GET /manifest`, расширение подтягивает его сам.
+Подробности — [INSTALL.md](INSTALL.md#51-манифест-озвучки-что-произносить-а-что-нельзя).
+
 Команды: `/voice`, `/voice backend [local\|api]`, `/voice lang [ru\|en\|auto]`,
 `/voice device [auto\|gpu\|cpu]`, `/voice doctor [--fix]`, `/voice heal`, `/voice help`.
 
@@ -127,6 +134,7 @@ bash sync-plugin.sh --check # bundle совпадает с исходникам�
 | [`TEST_PLAN.md`](TEST_PLAN.md) | ручные и smoke-проверки |
 | [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md) | скиллы `ovi-*` для диагностики и разработки |
 | [`extension/README.md`](extension/README.md) | расширение Chrome, popup, настройки |
+| [`shared/tts-manifest.json`](shared/tts-manifest.json) | манифест озвучки: маркер, обязательные фразы, запреты, голос |
 
 ## Лицензия
 

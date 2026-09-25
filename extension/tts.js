@@ -122,14 +122,67 @@
   // Управление озвучкой: строка, начинающаяся с 🔈, произносится, остальное —
   // нет. Так решает ассистент, а не расширение, и текст можно писать
   // естественно: короткими фразами, без разметки.
-  var SPEAK_MARK = "\uD83D\uDD08";
+  // Политика озвучки приезжает манифестом с сервера (shared/tts-manifest.json),
+  // поэтому она переносится вместе с плагином и не настраивается вручную на
+  // каждой машине. Пока манифест не приехал — работают значения по умолчанию.
+  var MANIFEST = null;
+  var DEFAULT_MANIFEST = {
+    speak: { mode: "manual", marker: "\uD83D\uDD08", briefSentences: 2, interChunkPauseMs: 220 },
+    alwaysVoicePrefixes: [],
+    neverVoicePatterns: []
+  };
+  function mSpeak(k, d) {
+    var m = MANIFEST && MANIFEST.speak ? MANIFEST.speak[k] : undefined;
+    if (m !== undefined && m !== null && m !== "") return m;
+    return d;
+  }
+  function mList(k) {
+    var m = MANIFEST && MANIFEST[k];
+    return Array.isArray(m) ? m : [];
+  }
+
   function markedSpoken(text) {
+    var mark = mSpeak("marker", DEFAULT_MANIFEST.speak.marker);
+    var bans = mList("neverVoicePatterns");
     var lines = String(text || "").split(/\r?\n/);
     var picked = [];
     for (var i = 0; i < lines.length; i++) {
-      if (lines[i].indexOf(SPEAK_MARK) === -1) continue;
-      var one = lines[i].replace(SPEAK_MARK, "").replace(/^\s*[*_#>-]+\s*/, "").trim();
-      if (one) picked.push(one);
+      if (lines[i].indexOf(mark) === -1) continue;
+      var one = lines[i].split(mark).join("").replace(/^\s*[*_#>-]+\s*/, "").trim();
+      if (!one) continue;
+      // Страховка манифеста: помеченная строка с кодом/путём/ссылкой вслух
+      // не читается — даже если метка стояла.
+      var skip = false;
+      for (var b = 0; b < bans.length; b++) {
+        if (bans[b] && one.indexOf(bans[b]) !== -1) { skip = true; break; }
+      }
+      if (skip) continue;
+      picked.push(one);
+    }
+    return picked.join(" ");
+  }
+
+  // Строки из alwaysVoicePrefixes озвучиваются ВСЕГДА, даже без метки.
+  function alwaysSpoken(text) {
+    var pref = mList("alwaysVoicePrefixes");
+    if (!pref.length) return "";
+    var bans = mList("neverVoicePatterns");
+    var lines = String(text || "").split(/\r?\n/);
+    var picked = [];
+    for (var i = 0; i < lines.length; i++) {
+      var one = lines[i].replace(/^\s*[*_#>-]+\s*/, "").trim();
+      if (!one) continue;
+      var hit = false;
+      for (var p = 0; p < pref.length; p++) {
+        if (pref[p] && one.indexOf(pref[p]) === 0) { hit = true; break; }
+      }
+      if (!hit) continue;
+      var skip = false;
+      for (var b = 0; b < bans.length; b++) {
+        if (bans[b] && one.indexOf(bans[b]) !== -1) { skip = true; break; }
+      }
+      if (skip) continue;
+      picked.push(one);
     }
     return picked.join(" ");
   }
@@ -138,8 +191,25 @@
   function pickSpoken(text, mode, briefN) {
     var marked = markedSpoken(text);
     if (marked) return marked;
+    var always = alwaysSpoken(text);
+    if (always) return always;
     if (mode === "manual") return "";
     return mode === "brief" ? briefSentences(text, briefN, { includeErrors: true }) : text;
+  }
+
+  // Единая точка применения манифеста: её зовёт и загрузка с сервера, и тесты.
+  function applyManifest(m) {
+    MANIFEST = (m && m.status === "ok") ? m : (m || null);
+    return !!MANIFEST;
+  }
+
+  // Загрузка манифеста с сервера. Не критично: при неудаче остаются дефолты.
+  function loadManifest(cb) {
+    if (!serverUrl) { cb(false); return; }
+    win.fetch(serverUrl + "/manifest", { headers: { Accept: "application/json" } })
+      .then(function (r) { return r.json(); })
+      .then(function (m) { cb(applyManifest(m)); })
+      .catch(function (e) { dbg("manifest: не загружен", e && e.message); cb(false); });
   }
 
   function chunkSentences(text, maxLen) {
@@ -846,6 +916,13 @@
     }
 
     loadSettings(function () {
+      // Манифест подгружается ДО запуска опроса: иначе первый ответ успевает
+      // озвучиться по дефолтам, а манифест пришёл бы позже.
+      loadManifest(function (ok) { dbg("manifest:", ok ? "загружен" : "дефолты"); startTicking(); });
+
+    });
+
+    function startTicking() {
       try {
         win.addEventListener("keydown", onKeyDown, true);
         win.addEventListener("pointerdown", primeAudio, true);
@@ -898,7 +975,7 @@
           if (settings.tts) { clearInterval(poll); setInterval(tick, 1000); tick(); }
         }, 1000);
       }
-    });
+    }
 
     return {
       stop: stopSpeaking,
@@ -914,7 +991,10 @@
     briefSentences: briefSentences,
     chunkSentences: chunkSentences,
     markedSpoken: markedSpoken,
+    alwaysSpoken: alwaysSpoken,
     pickSpoken: pickSpoken,
+    applyManifest: applyManifest,
+    loadManifest: loadManifest,
     utteranceBudget: utteranceBudget,
     dedupKey: dedupKey,
     comboMatches: comboMatches,

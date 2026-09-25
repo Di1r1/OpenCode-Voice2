@@ -54,7 +54,7 @@
 - `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test` — **93/93** (было 76/76; +17 новых
   тестов: 13 на shell boundary, 4 на поставку bundle);
 - `python3 -m pytest -q` — **65 passed**, exit `0`;
-- `bash sync-plugin.sh --check` — **exit `0`**, все 19 файлов `OK`;
+- `bash sync-plugin.sh --check` — **exit `0`**, все 21 файл `OK`;
 - `npm run typecheck` — **автономен, exit `0`**: зависимости установлены через `npm ci`
   (98 пакетов, `package-lock.json` в репозитории), отрабатывает настоящий `tsc 5.9.3`.
   Сторож `scripts/ensure-deps.mjs` валит скрипт, если зависимостей нет, — раньше
@@ -109,7 +109,7 @@ On-disk files authoritative для следующей загрузки; automati
 | Семантика результата TUI-команды | **Частично** | V2 `ctx.session.prompt({ sessionID, text, delivery })` отправляет транскрипт в сессию/модели | Текст не вставляется в редактор и model call запускается автоматически |
 | Info-сабкоманды | **Частично** | `backend`, `lang`, `device`, `help`, `doctor`, `heal` отвечают; `svc(...)` проходит через `ctx.session.prompt` | Запрос не пустой, но модель всё равно вызывается без необходимости |
 | Автозапуск/watchdog именно V2 bundle | **Работает** (P0 закрыт в этом проходе) | `server-launcher.ts` ищет `stt-server/stt_server.py` и относительно bundle (`../stt-server/`), и относительно исходников; `test/deploy.test.mjs` проверяет резолв **внутри** bundle из постороннего temp-cwd | Cwd-dependent deployment gap устранён |
-| Самостоятельность V2 bundle | **Работает** (P0 закрыт в этом проходе) | `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`; `bash sync-plugin.sh --check` — exit `0` по всем 19 файлам; `test/deploy.test.mjs` валидирует именно поставленный bundle | Локальная поставка воспроизводима одной проверкой sync |
+| Самостоятельность V2 bundle | **Работает** (P0 закрыт в этом проходе) | `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`; `bash sync-plugin.sh --check` — exit `0` по всем 21 файлу; `test/deploy.test.mjs` валидирует именно поставленный bundle | Локальная поставка воспроизводима одной проверкой sync |
 | Серверный TTS (Piper) | **Работает** | `piper-tts 1.8.0` + голос `ru_RU-irina-medium` (63 МБ) в `~/.local/share/opencode-voice/tts`; health `available=true`; `/speak` → 200, валидный RIFF WAV; CORS с Origin расширения проходит | Озвучка работает; голос подхватывается автоматически, `setup.sh --tts` ставит Piper и голоса |
 | Автономный typecheck в checkout | **Работает** | `npm ci` даёт 98 пакетов и `package-lock.json`; `npm run typecheck` → `✓ зависимости на месте (typescript 5.9.3)`, `tsc --noEmit` exit `0`; `scripts/ensure-deps.mjs` не даёт «тихо зелёному» | Проверка типов автономна и не может молча сорваться |
 | Node prerequisite для test command | **Работает** | `package.json.engines.node` = `>=22.6.0` (реальный минимум для `--experimental-strip-types`); Node 22 живёт в `~/.local/opt/node22`, не в `/tmp` | `wsl --shutdown` чистит `/tmp`, поэтому Node держим в `$HOME`, а не во временном каталоге |

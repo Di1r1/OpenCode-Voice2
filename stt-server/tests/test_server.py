@@ -795,3 +795,69 @@ def test_voices_requires_token(client, monkeypatch, tmp_path):
     ok = client.get("/voices", headers={"X-Voice-Token": "s3cret"})
     assert ok.status_code == 200
     assert ok.get_json()["status"] == "ok"
+
+
+# --- /manifest: переносимая политика озвучки --------------------------------
+# Манифест лежит в shared/ рядом со спецификацией и уезжает в bundle через
+# sync-plugin.sh, поэтому озвучка переносится на другую машину вместе с плагином.
+
+
+def test_manifest_ships_the_shipped_policy(client):
+    """Реальный файл репозитория отдаётся как есть, а не как фолбэк."""
+    body = client.get("/manifest").get_json()
+    assert body["status"] == "ok"
+    assert body["source"] == "shared/tts-manifest.json"
+    assert body["version"] == 1
+    assert body["speak"]["mode"] in ("manual", "brief", "full")
+    assert body["speak"]["marker"], "маркер озвучки не должен быть пустым"
+    # Фолбэк содержит 0/4 — реальный манифест заметно полнее.
+    assert len(body["alwaysVoicePrefixes"]) > 4, "манифест не прочитан, отдан фолбэк"
+    assert len(body["neverVoicePatterns"]) > 4, "манифест не прочитан, отдан фолбэк"
+
+
+def test_manifest_strips_service_comment_keys(client):
+    """Ключи `$...` — служебные комментарии, наружу (и в расширение) не уходят."""
+    def leaks(node):
+        if isinstance(node, dict):
+            return [k for k in node if k.startswith("$")] + [x for v in node.values() for x in leaks(v)]
+        if isinstance(node, list):
+            return [x for v in node for x in leaks(v)]
+        return []
+    assert leaks(client.get("/manifest").get_json()) == []
+
+
+def test_manifest_keeps_marker_and_bans_consistent(client):
+    """Маркер и запреты связаны: код/URL/пути не должны читаться вслух."""
+    speak = client.get("/manifest").get_json()["speak"]
+    bans = client.get("/manifest").get_json()["neverVoicePatterns"]
+    assert "```" in bans, "блоки кода обязаны быть в запретах"
+    assert any(b.startswith("http") for b in bans), "ссылки обязаны быть в запретах"
+    assert speak["marker"] not in speak["mode"], "маркер не должен попадать в режим"
+    assert speak["interChunkPauseMs"] > 0, "пауза между фразами должна быть живой"
+
+
+def test_manifest_falls_back_when_file_missing(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(srv, "_MANIFEST_PATH", tmp_path / "no-such-file.json")
+    body = client.get("/manifest").get_json()
+    assert body["status"] == "ok"
+    assert body["speak"]["mode"] == "manual"
+    assert body["neverVoicePatterns"] == ["```", "http://", "https://", "/mnt/"]
+
+
+def test_manifest_falls_back_on_broken_json(client, monkeypatch, tmp_path):
+    """Битый манифест не должен ронять сервер — уходит в безопасный фолбэк."""
+    bad = tmp_path / "tts-manifest.json"
+    bad.write_text('{"alwaysVoicePrefixes": ["oops",]}', encoding="utf-8")
+    monkeypatch.setattr(srv, "_MANIFEST_PATH", bad)
+    body = client.get("/manifest").get_json()
+    assert body["status"] == "ok"
+    assert body["alwaysVoicePrefixes"] == []
+
+
+def test_manifest_requires_token(client, monkeypatch, tmp_path):
+    _enable_tts(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENCODE_VOICE_TOKEN", "s3cret")
+    assert client.get("/manifest").status_code == 401
+    ok = client.get("/manifest", headers={"X-Voice-Token": "s3cret"})
+    assert ok.status_code == 200
+    assert ok.get_json()["status"] == "ok"

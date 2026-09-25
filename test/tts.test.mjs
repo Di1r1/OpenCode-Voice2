@@ -143,3 +143,68 @@ test("без метки поведение прежнее: brief читает н
   assert.equal(TTS.pickSpoken("Раз. Два. Три. Четыре.", "brief", 2), "Раз. Два.");
   assert.equal(TTS.pickSpoken("Раз. Два. Три. Четыре.", "full", 2), "Раз. Два. Три. Четыре.");
 });
+
+// --- манифест озвучки (shared/tts-manifest.json -> GET /manifest) -------------
+// Политика приезжает с сервера, поэтому расширение обязано уважать её одинаково
+// на любой машине: обязательные фразы звучат всегда, запрещённые — никогда.
+
+const manifestFixture = {
+  status: "ok",
+  version: 1,
+  speak: { mode: "manual", marker: "🔈", briefSentences: 2, interChunkPauseMs: 220 },
+  alwaysVoicePrefixes: ["Готово", "Ошибка", "Важно"],
+  neverVoicePatterns: ["```", "https://", "/mnt/"],
+}
+
+test("tts.js exposes the manifest helpers", () => {
+  for (const name of ["alwaysSpoken", "applyManifest", "loadManifest"]) {
+    assert.equal(typeof TTS[name], "function", `missing ${name}`)
+  }
+})
+
+test("манифест: обязательные фразы звучат без маркера", () => {
+  TTS.applyManifest(manifestFixture)
+  assert.equal(TTS.alwaysSpoken("Готово: тесты зелёные"), "Готово: тесты зелёные")
+  // Обычный текст без маркера и без обязательного начала — молчит.
+  assert.equal(TTS.alwaysSpoken("Просто пояснение без метки"), "")
+  // Метка в режиме manual по-прежнему главнее всего.
+  assert.equal(TTS.pickSpoken("🔈 сказать это", "manual", 2), "сказать это")
+})
+
+test("манифест: запреты гасят даже помеченную строку", () => {
+  TTS.applyManifest(manifestFixture)
+  assert.equal(TTS.markedSpoken("🔈 открой https://example.com"), "")
+  assert.equal(TTS.markedSpoken("🔈 файл в /mnt/c/temp/x.ts"), "")
+  assert.equal(TTS.markedSpoken("🔈 блок ```code```"), "")
+  // Обычная реплика метку сохраняет.
+  assert.equal(TTS.markedSpoken("🔈 всё готово"), "всё готово")
+  // Обязательное начало тоже гасится запретом — код вслух не читаем.
+  assert.equal(TTS.alwaysSpoken("Готово: https://example.com"), "")
+})
+
+test("манифест: свой маркер вместо 🔈", () => {
+  TTS.applyManifest({ ...manifestFixture, speak: { ...manifestFixture.speak, marker: ">>" } })
+  assert.equal(TTS.markedSpoken(">> произнести"), "произнести")
+  assert.equal(TTS.markedSpoken("🔈 старый маркер молчит"), "")
+  TTS.applyManifest(manifestFixture) // вернуть дефолт для следующих тестов
+})
+
+test("манифест: applyManifest(null) возвращает к дефолтам", () => {
+  TTS.applyManifest(manifestFixture)
+  TTS.applyManifest(null)
+  assert.equal(TTS.alwaysSpoken("Готово: всё"), "", "без манифеста обязательных правил нет")
+  assert.equal(TTS.markedSpoken("🔈 всё готово"), "всё готово", "маркер по умолчанию живёт")
+  // Запретов без манифеста нет: строка уходит в чистку речи как есть, снятие
+  // метки не должно «съедать» начало фразы.
+  assert.equal(TTS.markedSpoken("🔈 всё https://example.com"), "всё https://example.com",
+    "без манифеста запретов нет — чистка текста не должна ломать речь")
+})
+
+test("манифест репозитория применим расширением без потерь", () => {
+  // Реальный файл, который переезжает вместе с плагином, должен работать.
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  assert.ok(TTS.alwaysSpoken("Готово: всё собрано"), "реальный alwaysVoicePrefixes не сработал")
+  assert.equal(TTS.markedSpoken("🔈 npm ci отработал"), "", "реальный neverVoicePatterns не сработал")
+  assert.equal(TTS.markedSpoken("🔈 готово к проверке"), "готово к проверке")
+  TTS.applyManifest(null)
+})

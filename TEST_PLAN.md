@@ -285,7 +285,7 @@ bash sync-plugin.sh --check
 - [ ] команды `voice` и `v` видны;
 - [ ] `/voice` записывает и отправляет transcript в сессию/модель;
 - [ ] extension version соответствует `1.0.35` (и расширение перезагружено в Chrome);
-- [ ] `bash sync-plugin.sh --check` печатает `OK` по всем 19 файлам;
+- [ ] `bash sync-plugin.sh --check` печатает `OK` по всем 21 файлу;
 - [ ] фактический `stt_server.py` запущен из V2 path, а не из V1 path.
 
 ## 9. Deployment smoke (cwd-независимость, P0 закрыт)
