@@ -157,9 +157,17 @@ const manifestFixture = {
 }
 
 test("tts.js exposes the manifest helpers", () => {
-  for (const name of ["alwaysSpoken", "applyManifest", "loadManifest"]) {
+  for (const name of ["alwaysSpoken", "applyManifest", "mLevel", "levelId", "capChars"]) {
     assert.equal(typeof TTS[name], "function", `missing ${name}`)
   }
+  // loadManifest сознательно НЕ в модульном объекте: он пользуется
+  // serverUrl/win/dbg, которые живут внутри start(deps), и вынесенный наружу
+  // падал с ReferenceError. Отдаётся экземпляром — проверка ниже.
+  assert.equal(TTS.loadManifest, undefined,
+    "loadManifest не должен висеть на модуле: вне start() у него нет serverUrl")
+  const src = readFileSync(here("../extension/tts.js"), "utf8")
+  assert.ok(/return \{[\s\S]{0,400}?loadManifest:\s*loadManifest/.test(src),
+    "start() должен отдавать loadManifest в своём return")
 })
 
 test("манифест: обязательные фразы звучат без маркера", () => {
@@ -319,4 +327,70 @@ test("метка в середине фразы — не метка (1.0.47)", (
   assert.equal(TTS.pickSpoken(`Готово: всё собрано.\nМетка 🔈 упоминается в тексте.`, "quiet"),
     "Готово: всё собрано.", "прозаическая метка не должна вытеснять обязательную фразу")
   TTS.applyManifest(null)
+})
+
+test("внешняя область не трогает внутренности start() (1.0.49)", () => {
+  // Именно так был найден корневой баг: loadManifest стоял СНАРУЖИ start(deps),
+  // где нет serverUrl, win и dbg. В нестрогом режиме чтение необъявленного
+  // имени бросает ReferenceError синхронно, до fetch, — исключение уходило из
+  // колбэка loadSettings, startTicking() не вызывался, обработчик
+  // ocv-tts-status не регистрировался. Итог: «статус недоступен» без причины,
+  // озвучка мертва, а content.js продолжал работать и маскировал поломку.
+  const src = readFileSync(here("../extension/tts.js"), "utf8")
+  const cut = src.indexOf("function start(deps)")
+  assert.ok(cut > 0, "не найдена граница start()")
+  const outer = src.slice(0, cut).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
+  for (const name of ["serverUrl", "win\\.", "\\bdbg\\(", "logTail", "\\bspeaking\\b", "gateOk", "stats\\."]) {
+    const hits = outer.match(new RegExp(name, "g")) || []
+    assert.equal(hits.length, 0,
+      `внешняя область ссылается на внутренность start(): ${name} (${hits.length})`)
+  }
+})
+
+test("loadManifest объявлен внутри start() и отдаётся наружу (1.0.49)", () => {
+  // Если он снова выедет наружу, тест выше упадёт. Здесь проверяем, что
+  // вызывающий код достаёт его у экземпляра, а не у модуля.
+  const src = readFileSync(here("../extension/tts.js"), "utf8")
+  const decl = src.indexOf("function loadManifest(cb)")
+  const startAt = src.indexOf("function start(deps)")
+  assert.ok(decl > startAt, "loadManifest должен быть объявлен внутри start(deps)")
+  assert.ok(src.slice(startAt).includes("loadManifest: loadManifest"),
+    "start() должен отдавать loadManifest наружу — иначе его нечем заменить")
+})
+
+// ---------------------------------------------------------------------------
+// Журнал озвучки и версия (1.0.50)
+// ---------------------------------------------------------------------------
+
+test("версия расширения в одном месте", () => {
+  // Раньше версия жила в manifest.json И строкой в content.js. Строка
+  // расходилась с манифестом, и по логу нельзя было понять, что запущено.
+  const man = readJson("../extension/manifest.json").version
+  const tts = readFileSync(here("../extension/tts.js"), "utf8")
+  const m = tts.match(/var TTS_VERSION = "([^"]+)"/)
+  assert.ok(m, "в tts.js нет TTS_VERSION — версия потеряла единый источник")
+  assert.equal(m[1], man, `расхождение версий: manifest=${man}, tts.js=${m[1]}`)
+  assert.ok(tts.includes("TTS_VERSION: TTS_VERSION"), "tts.js должен отдавать версию наружу")
+  const content = readFileSync(here("../extension/content.js"), "utf8")
+  assert.ok(!/content\.js v\d+\.\d+\.\d+ loaded/.test(content),
+    "content.js не должен хардкодить версию строкой — он берёт её из tts.js")
+})
+
+test("каждое решение пишется в журнал (REPORTER)", () => {
+  // Пользователь просил лог «ставится метка / уходит голосом». Значит каждая
+  // ветка выбора обязана оставить запись, иначе молчание нечем объяснить.
+  const tts = readFileSync(here("../extension/tts.js"), "utf8")
+  for (const kind of ["mark", "always", "level", "skip"]) {
+    assert.ok(tts.includes(`REPORTER("${kind}"`),
+      `ветка ${kind} не пишет в журнал — молчание будет нечем объяснить`)
+  }
+  assert.ok(tts.includes('logEvent("speak"'), "в синтез должен уходить явный лог")
+  assert.ok(tts.includes("REPORTER = logEvent"), "start() обязан подменить крючок журнала")
+  assert.ok(tts.includes("eventsLog:"), "журнал должен отдаваться в popup")
+})
+
+test("журнал не течёт: кольцевой буфер ограничен", () => {
+  const tts = readFileSync(here("../extension/tts.js"), "utf8")
+  assert.ok(/var LOG_MAX = \d+/.test(tts), "нет предела размера журнала")
+  assert.ok(tts.includes("logEvents.shift()"), "буфер журнала не усекается — вырастет без предела")
 })

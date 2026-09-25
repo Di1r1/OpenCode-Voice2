@@ -655,7 +655,9 @@ try {
 // страницы и в логе STT-сервера как beep freq=0).
 void tokenReady.then(() => {
   try {
-    console.log('[OpenCode Voice] content.js v1.0.49 loaded');
+    // Версию не дублируем строкой: tts.js грузится раньше и отдаёт свою.
+    var v = (globalThis.OpenCodeVoiceTTS && globalThis.OpenCodeVoiceTTS.TTS_VERSION) || '?';
+    console.log('[OpenCode Voice] content.js v' + v + ' loaded');
     fetch(`${STT_SERVER}/beep?freq=0`, { method: 'GET', headers: authHeaders() }).catch(() => {});
     fetch(`${STT_SERVER}/health`, { method: 'GET', headers: authHeaders() })
       .then((r) => r.json())

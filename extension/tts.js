@@ -8,7 +8,9 @@
 // Чистые хелперы отдаются в globalThis.OpenCodeVoiceTTS — их гоняет test/tts.test.mjs
 // через node:vm (кросс-паритет с src/lib/text.ts по shared/tts-cases.json).
 
+// Версия расширения — ЕДИНСТВЕННОЕ место, где она живёт. Раньше она была
 (function () {
+  var TTS_VERSION = "1.0.50";
   "use strict";
 
   // ------------------------------------------------------------------ helpers
@@ -250,6 +252,11 @@
     return picked.join(" ");
   }
 
+  // Журнал живёт внутри start(), но pickSpoken() — снаружи. Поэтому здесь
+  // крючок, который start() подменяет на реальный журнализатор. Без него
+  // решение «почему прозвучало / почему нет» вообще нигде не остаётся.
+  var REPORTER = function () {};
+
   // Порядок приоритета: пометка важнее уровня, уровень важнее автоматики.
   // manual — не уровень, а отдельная философия: без метки не звучит ничего.
   // Третий аргумент (briefN) оставлен для совместимости вызова и игнорируется:
@@ -257,14 +264,20 @@
   // сохранённое значение заблокировало бы шкалу у всех, кто давно пользуется.
   function pickSpoken(text, mode, briefN) {
     var marked = markedSpoken(text);
-    if (marked) return marked;
+    if (marked) { REPORTER("mark", { mode: mode, chars: marked.length, text: marked.slice(0, 90) }); return marked; }
     var always = alwaysSpoken(text);
-    if (always) return always;
-    if (mode === "manual") return "";
+    if (always) { REPORTER("always", { mode: mode, chars: always.length, text: always.slice(0, 90) }); return always; }
+    if (mode === "manual") { REPORTER("skip", { mode: mode, reason: "режим manual, метки нет" }); return ""; }
     var cfg = mLevel(levelId(mode)) || {};
     var sentences = cfg.sentences | 0;
-    if (sentences <= 0) return String(text || "");   // full — без ограничений
-    return capChars(briefSentences(text, sentences, { includeErrors: true }), cfg.maxChars);
+    if (sentences <= 0) {
+      REPORTER("level", { mode: mode, all: true, chars: (text || "").length });
+      return String(text || "");   // full — без ограничений
+    }
+    var out = capChars(briefSentences(text, sentences, { includeErrors: true }), cfg.maxChars);
+    if (!out) { REPORTER("skip", { mode: mode, reason: "уровень не дал текста" }); return ""; }
+    REPORTER("level", { mode: mode, sentences: sentences, chars: out.length, text: out.slice(0, 90) });
+    return out;
   }
 
   // Единая точка применения манифеста: её зовёт и загрузка с сервера, и тесты.
@@ -273,14 +286,12 @@
     return !!MANIFEST;
   }
 
-  // Загрузка манифеста с сервера. Не критично: при неудаче остаются дефолты.
-  function loadManifest(cb) {
-    if (!serverUrl) { cb(false); return; }
-    win.fetch(serverUrl + "/manifest", { headers: { Accept: "application/json" } })
-      .then(function (r) { return r.json(); })
-      .then(function (m) { cb(applyManifest(m)); })
-      .catch(function (e) { dbg("manifest: не загружен", e && e.message); cb(false); });
+  // Единая точка применения манифеста: её зовёт и загрузка с сервера, и тесты.
+  function applyManifest(m) {
+    MANIFEST = (m && m.status === "ok") ? m : (m || null);
+    return !!MANIFEST;
   }
+
 
   function chunkSentences(text, maxLen) {
     maxLen = maxLen || 180;
@@ -371,6 +382,38 @@
     var pollDirty = false; // событие message.*/session.* — опрос пора обновить
     var noVoiceRetries = 0;
     var speakFailures = 0;
+    // Структурированный журнал озвучки. Отдельные записи: метка найдена,
+    // обязательная фраза, выбор по уровню, ушло в синтез, синтез закончился
+    // или упал, и почему не прозвучало. Кольцевой буфер — хватает на разбор
+    // молчания без DevTools, а кнопка в popup отдаёт его одной строкой.
+    var LOG_MAX = 200;
+    var logEvents = [];
+    function stamp() {
+      try {
+        var d = new Date();
+        var p2 = function (v) { return v < 10 ? "0" + v : String(v); };
+        return p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds());
+      } catch (e) { return "--:--:--"; }
+    }
+    function logEvent(kind, data) {
+      var ev = { t: stamp(), kind: kind };
+      if (data) for (var k in data) if (Object.prototype.hasOwnProperty.call(data, k)) ev[k] = data[k];
+      logEvents.push(ev);
+      if (logEvents.length > LOG_MAX) logEvents.shift();
+      try { dbg(kind, data || ""); } catch (e) {}
+      return ev;
+    }
+    function logFormat(ev) {
+      var bits = [ev.t, ev.kind];
+      for (var k in ev) {
+        if (k === "t" || k === "kind") continue;
+        bits.push(k + "=" + JSON.stringify(ev[k]));
+      }
+      return bits.join(" ");
+    }
+    // pickSpoken() живёт снаружи start() и зовёт этот крючок.
+    REPORTER = logEvent;
+
     var dbg = function () {
       var args = [].slice.call(arguments);
       var line = args.map(function (a) { return typeof a === "string" ? a : JSON.stringify(a); }).join(" ");
@@ -650,9 +693,16 @@
       // идущей речи — два AudioBufferSource / два utterance звучали одновременно.
       // Гарантия: одновременно говорит только один голос.
       if (speaking) {
+        logEvent("speak.interrupt", { chars: (text || "").length });
         dbg("speak: прерываю текущую речь перед новой");
         stopSpeaking(false);
       }
+      // Главная запись журнала: вот что уходит в синтез.
+      logEvent("speak", {
+        engine: settings.ttsEngine === "server" && serverUrl ? "server" : "browser",
+        chars: (text || "").length,
+        text: String(text || "").slice(0, 120)
+      });
       if (settings.ttsEngine === "server" && serverUrl) { speakServer(text); return; }
       speakBrowser(text);
     }
@@ -986,11 +1036,48 @@
     }
 
     loadSettings(function () {
-      // Манифест подгружается ДО запуска опроса: иначе первый ответ успевает
-      // озвучиться по дефолтам, а манифест пришёл бы позже.
-      loadManifest(function (ok) { dbg("manifest:", ok ? "загружен" : "дефолты"); startTicking(); });
-
+      // Сначала стартуем, потом грузим манифест — параллельно, а не в цепочке.
+      // Раньше startTicking() ждал колбэка манифеста, и любой сбой манифеста
+      // глушил расширение целиком. Манифест влияет только на выбор текста и
+      // имеет дефолты, поэтому ждать его нельзя: первый ответ успевает
+      // озвучиться по дефолтам, а приехавший манифест подхватит следующий.
+      startTicking();
+      loadManifest(function (ok) { dbg("manifest:", ok ? "загружен" : "дефолты"); });
     });
+
+
+    // Загрузка манифеста с сервера. Не критично: при любой неудаче остаются
+    // дефолты. Обязательные гарантии:
+    //   1) колбэк зовётся ВСЕГДА и ровно один раз — на это опирается вызов;
+    //   2) исключение не выходит наружу (иначе падал весь content-скрипт);
+    //   3) есть таймаут, чтобы зависший запрос не держал обещание вечно.
+    // Раньше здесь стоял голый win.fetch, и если он бросал или провисал, до
+    // startTicking() дело не доходило: расширение молча теряло озвучку И ответ
+    // popup на ocv-tts-status — то есть «статус недоступен» без всякой причины.
+    var MANIFEST_TIMEOUT_MS = 4000;
+    function loadManifest(cb) {
+      var done = false;
+      function once(ok) { if (done) return; done = true; try { cb(ok); } catch (e) { dbg("manifest cb failed", e); } }
+      var timer = null;
+      try {
+        if (!serverUrl || typeof win.fetch !== "function") { once(false); return; }
+        timer = win.setTimeout(function () { dbg("manifest: таймаут"); once(false); }, MANIFEST_TIMEOUT_MS);
+        win.fetch(serverUrl + "/manifest", { headers: { Accept: "application/json" } })
+          .then(function (r) { return r.json(); })
+          .then(function (m) {
+            if (timer) win.clearTimeout(timer);
+            once(applyManifest(m));
+          })
+          .catch(function (e) {
+            if (timer) win.clearTimeout(timer);
+            dbg("manifest: не загружен", e && e.message);
+            once(false);
+          });
+      } catch (e) {
+        dbg("manifest: исключение", e && e.message);
+        once(false);
+      }
+    }
 
     function startTicking() {
       try {
@@ -1015,11 +1102,19 @@
             if (msg.type === "ocv-tts-status") {
               sendResponse({
                 ok: true, tts: settings.tts, gateOk: gateOk, hasSource: !!source, speaking: speaking,
+                // Версия и уровень — в шапку копируемого журнала, чтобы по
+                // одному вставленному куску было видно, на чём вообще гоняли.
+                ver: TTS_VERSION, mode: settings.ttsMode,
+                level: levelId(settings.ttsMode),
+                manifest: MANIFEST ? "ok" : "default",
                 voices: (function () { try { return (win.speechSynthesis && win.speechSynthesis.getVoices() || []).length; } catch (e) { return -1; } })(),
                 sourceState: stats.sourceState, events: stats.events, lastType: stats.lastType, spoken: stats.spoken,
                 lastSid: stats.lastSid, finalized: stats.finalized, lastSkip: stats.lastSkip,
                 rows: (function () { try { return doc ? doc.querySelectorAll("[data-message-id]").length : -1; } catch (e) { return -1; } })(),
-                logTail: logTail.slice(-12)
+                logTail: logTail.slice(-12),
+                // Готовые строки для копирования: кнопка в popup отдаёт их
+                // одним куском, чтобы можно было прислать разбор молчания.
+                eventsLog: logEvents.slice(-120).map(logFormat)
               });
               return true;
             }
@@ -1050,7 +1145,10 @@
     return {
       stop: stopSpeaking,
       isSpeaking: function () { return speaking; },
-      settings: function () { return settings; }
+      settings: function () { return settings; },
+      // Живёт внутри start(), потому что пользуется serverUrl/win/dbg.
+      // Наружу отдаётся отсюда, а не из модульного объекта.
+      loadManifest: loadManifest
     };
   }
 
@@ -1068,11 +1166,11 @@
     alwaysSpoken: alwaysSpoken,
     pickSpoken: pickSpoken,
     applyManifest: applyManifest,
-    loadManifest: loadManifest,
     utteranceBudget: utteranceBudget,
     dedupKey: dedupKey,
     comboMatches: comboMatches,
     DEFAULTS: DEFAULTS,
+    TTS_VERSION: TTS_VERSION,
     start: start
   };
 })();

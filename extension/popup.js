@@ -79,6 +79,11 @@ const UI = {
     onServer: 'на сервере',
     emptyResp: '(пусто)',
     statusNA: 'статус недоступен. Открой popup на вкладке OpenCode и нажми F5.',
+    copyLog: 'Скопировать журнал озвучки',
+    clearLog: 'Очистить',
+    logCopied: 'журнал скопирован — вставь в чат',
+    logEmpty: 'журнал пуст',
+    logNoTab: 'нет вкладки OpenCode',
     ttsReady: 'озвучка готова (подробности — галочка «Отладка»)',
     ttsWaiting: 'озвучка ждёт страницу OpenCode (F5)',
     testOk: '✅ Тест OK: "{text}"',
@@ -141,6 +146,11 @@ const UI = {
     onServer: 'on server',
     emptyResp: '(empty)',
     statusNA: 'status unavailable. Open the popup on the OpenCode tab and press F5.',
+    copyLog: 'Copy speech log',
+    clearLog: 'Clear',
+    logCopied: 'log copied — paste it in chat',
+    logEmpty: 'log is empty',
+    logNoTab: 'no OpenCode tab',
     ttsReady: 'speech ready (tick Debug for details)',
     ttsWaiting: 'speech is waiting for the OpenCode page (F5)',
     testOk: '✅ Test OK: "{text}"',
@@ -355,6 +365,37 @@ ttsTestBtn.addEventListener('click', async () => {
     statusEl.textContent = t('openPage');
     statusEl.className = 'status error';
   }
+});
+
+// Журнал озвучки: что пометили, что выбрано, что ушло в синтез и почему молчало.
+// Копируется одним куском — этого достаточно, чтобы разобраться без DevTools.
+const copyLogBtn = document.getElementById('copyLog');
+const clearLogBtn = document.getElementById('clearLog');
+
+async function fetchEvents() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) return null;
+  const s = await chrome.tabs.sendMessage(tab.id, { type: 'ocv-tts-status' });
+  return s && s.ok ? s : null;
+}
+
+if (copyLogBtn) copyLogBtn.addEventListener('click', async () => {
+  try {
+    const s = await fetchEvents();
+    if (!s) { alert(t('logNoTab')); return; }
+    const header = `# OpenCode Voice ${(s.ver || '?')} level=${s.mode || '?'} gate=${s.gateOk} ` +
+      `fin=${s.finalized} said=${s.spoken} rows=${s.rows} voices=${s.voices}`;
+    const body = (s.eventsLog || []).join('\n');
+    if (!body) { alert(t('logEmpty')); return; }
+    await navigator.clipboard.writeText(header + '\n' + body);
+    alert(t('logCopied'));
+  } catch (e) {
+    alert(t('statusNA'));
+  }
+});
+
+if (clearLogBtn) clearLogBtn.addEventListener('click', () => {
+  refreshTtsStatus();
 });
 
 // Статус TTS с активной вкладки — быстрый способ диагностики без DevTools.
