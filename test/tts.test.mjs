@@ -303,3 +303,20 @@ test("реальный манифест задаёт шкалу целиком",
   assert.ok(order.every((id) => TTS.mLevel(id).label.length > 0), "подписи уровней пустые")
   TTS.applyManifest(null)
 })
+
+test("метка в середине фразы — не метка (1.0.47)", () => {
+  // Обычное упоминание символа вслух не зачитывается и не вырезается.
+  const prose = "Приоритет такой: метка 🔈 важнее уровня."
+  assert.equal(TTS.markedSpoken(prose), "", "упоминание метки в прозе не должно попадать в речь")
+  // И настоящая метка в начале строки по-прежнему работает.
+  assert.equal(TTS.markedSpoken("🔈 это надо услышать"), "это надо услышать")
+  // В том числе после markdown-разметки списка.
+  assert.equal(TTS.markedSpoken("- 🔈 пункт списка"), "пункт списка")
+  assert.equal(TTS.markedSpoken("  > 🔈 цитата"), "цитата")
+  assert.equal(TTS.markedSpoken("## 🔈 заголовок"), "заголовок")
+  // Пометка не должна перебивать обязательные фразы, если она в прозе.
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  assert.equal(TTS.pickSpoken(`Готово: всё собрано.\nМетка 🔈 упоминается в тексте.`, "quiet"),
+    "Готово: всё собрано.", "прозаическая метка не должна вытеснять обязательную фразу")
+  TTS.applyManifest(null)
+})
