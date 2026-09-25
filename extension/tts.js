@@ -538,19 +538,30 @@
 
     // Прайминг аудио: в content-скрипте его раньше не было (бипы ушли на сервер).
     // Нужен только серверному движку — Web Speech autoplay-гейтом не ограничен.
+    // Возвращает true, если Web Audio реально готов играть. Контекст в
+    // состоянии suspended (autoplay-политика Chrome) даёт РАБОТАЮЩИЙ src.start()
+    // без единого звука и без исключения — раньше это молча превращалось в полную
+    // тишину, потому что ветка с <audio> была недостижима: audioCtx создавался
+    // всегда. Теперь suspended-контекст уводит нас на элемент <audio>, где
+    // play() честно реджектит и срабатывает фолбэк на Web Speech.
     function primeAudio() {
       try {
         var AC = win.AudioContext || win.webkitAudioContext;
-        if (!AC) return;
+        if (!AC) return false;
         if (!audioCtx) audioCtx = new AC();
         if (audioCtx.state === "suspended") audioCtx.resume().catch(function () {});
-      } catch (e) {}
+        return audioCtx.state === "running";
+      } catch (e) { return false; }
     }
 
     function playBuffer(buf, onEnd, onError) {
-      primeAudio();
       var fail = function (why) { if (onError) onError(why); };
-      if (audioCtx) {
+      // suspended/racing контекст молчит — идём на <audio>, у него play()
+      // возвращает отказ при блокировке автовоспроизведения.
+      if (!primeAudio() || !audioCtx) {
+        dbg("playBuffer: audioCtx not running, use <audio>");
+      }
+      if (audioCtx && audioCtx.state === "running") {
         try {
           Promise.resolve(audioCtx.decodeAudioData(buf.slice(0))).then(function (decoded) {
             try {
@@ -588,7 +599,11 @@
     // откатывалось на Web Speech. При фатальной ошибке — фолбэк остатка на
     // Web Speech, чтобы ответ всё равно прозвучал.
     function speakServer(text) {
-      if (!hasUserActivation()) { dbg("no user activation, defer (server)"); pending = text; return; }
+      // Раньше здесь был жёсткий return при hasBeenActive === false: текст
+      // возвращался в pending и tick() ставил его обратно в pending же, то есть
+      // синтез молчал бесконечно. Теперь пробуем сразу — реальный отказ
+      // придёт из play()/decode и уйдёт в fallbackRest -> Web Speech.
+      if (!hasUserActivation()) dbg("no user activation, trying anyway (server)");
       var chunks = chunkSentences(text);
       if (!chunks.length) return;
       speaking = true;
