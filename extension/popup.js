@@ -78,7 +78,7 @@ const UI = {
     noStatus: 'content-скрипт не отвечает (обновите страницу F5)',
     onServer: 'на сервере',
     emptyResp: '(пусто)',
-    statusNA: 'статус недоступен (обновите страницу F5)',
+    statusNA: 'статус недоступен. Открой popup на вкладке OpenCode и нажми F5.',
     ttsReady: 'озвучка готова (подробности — галочка «Отладка»)',
     ttsWaiting: 'озвучка ждёт страницу OpenCode (F5)',
     testOk: '✅ Тест OK: "{text}"',
@@ -140,7 +140,7 @@ const UI = {
     noStatus: 'content script is not responding (reload the page with F5)',
     onServer: 'on server',
     emptyResp: '(empty)',
-    statusNA: 'status unavailable (reload the page with F5)',
+    statusNA: 'status unavailable. Open the popup on the OpenCode tab and press F5.',
     ttsReady: 'speech ready (tick Debug for details)',
     ttsWaiting: 'speech is waiting for the OpenCode page (F5)',
     testOk: '✅ Test OK: "{text}"',
@@ -361,11 +361,16 @@ ttsTestBtn.addEventListener('click', async () => {
 async function refreshTtsStatus() {
   const el = document.getElementById('ttsStatus');
   if (!el) return;
+  // Показываем, в какую вкладку смотрим. «Статус недоступен» одинаково выглядит
+  // при мёртвом content script и при popup, открытом не на той вкладке, —
+  // без адреса приходилось гадать. Короткий вид, чтобы не ломать вёрстку.
+  let where = '';
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) { el.textContent = t('noTab'); return; }
+    where = (tab.url || '').replace(/^https?:\/\//, '').slice(0, 60);
     const s = await chrome.tabs.sendMessage(tab.id, { type: 'ocv-tts-status' });
-    if (!s || !s.ok) { el.textContent = t('noStatus'); return; }
+    if (!s || !s.ok) { el.textContent = t('noStatus') + (where ? ` — ${where}` : ''); return; }
     // Галочка «Отладка» выключена — показываем одну строку вместо служебного
     // дампа. Раньше подробный вывод рисовался ВСЕГДА, и переключатель ничего
     // не делал: считалось, что настройка сломана.
@@ -381,7 +386,7 @@ async function refreshTtsStatus() {
       (s.lastSkip ? `skip:${s.lastSkip}\n` : '') +
       ((s.logTail && s.logTail.length) ? s.logTail.slice(-5).join('\n') : '');
   } catch (e) {
-    el.textContent = t('statusNA');
+    el.textContent = t('statusNA') + (where ? `\nвкладка: ${where}` : '');
   }
 }
 refreshTtsStatus();
