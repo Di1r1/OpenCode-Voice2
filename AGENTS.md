@@ -12,15 +12,26 @@
 - Server plugin `voice` загружается; команды `voice` и `v` зарегистрированы.
 - Core port V2 работает для запуска, команд, PTT и кнопки расширения.
 - Extension scope **least-privilege**: `content_scripts.matches` содержит только
-  `http://localhost:*/*` и `http://127.0.0.1:*/*`; `<all_urls>` удалён, версия расширения `1.0.35`.
+  `http://localhost:*/*` и `http://127.0.0.1:*/*`; `<all_urls>` удалён, версия расширения `1.0.36`.
+- `host_permissions` приведены к валидным match patterns: только `localhost` и `127.0.0.1`
+  (записи вида `172.16.0.0/12` Chrome не понимает и Web Store отвергал сборку).
 - Shell adapter **является** security boundary: `src/lib/shell.ts` передаёт значения как argv
   через `execFile` с `shell:false` и не использует `/bin/bash`.
 - V2 bundle **автономен**: `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`,
   `shared/`, `doctor.sh` и `fix-mic.sh`; launcher/`heal`/`whisper`/`text` ищут ресурсы
   относительно bundle, а не только относительно `cwd`.
+- Физический `<leader>v` **подтверждён живьём**: TUI запущен в tmux, лидер — `ctrl+x`
+  (совпадает с `ctrl+x l` / `ctrl+x m` в палитре); нажатие даёт тост, в открытой сессии
+  запускает запись (`arecord` поднимается за 1 с).
+- Серверный TTS **работает**: `piper-tts 1.8.0` + голос `ru_RU-irina-medium` (63 МБ) в
+  `~/.local/share/opencode-voice/tts`; `/health` → `available: true`, `/speak` отдаёт WAV.
+  Голос подхватывается автоматически, `setup.sh --tts` ставит Piper и голоса.
+- Typecheck **автономен**: зависимости установлены через `npm ci` (98 пакетов,
+  `package-lock.json` в репозитории), `npm run typecheck` → `tsc 5.9.3`, exit 0.
+  Сторож `scripts/ensure-deps.mjs` роняет скрипт, если зависимостей нет.
+- Репозиторий под git; CI в `.github/workflows/ci.yml`.
 - Полная автономная V2 migration **не завершена**: остаются разница UX (auto-submit вместо
-  вставки в редактор), неподтверждённый физический `<leader>v`, неавтономный typecheck и
-  серверный TTS (Piper).
+  вставки в редактор) и нежелательный model call для info-сабкоманд.
 
 ## Архитектура и источники истины
 
@@ -169,8 +180,8 @@ helper вне обязательного четырёхролевого pipeline
 - `OPENCODE_VOICE_MODEL=whisper-1` относится только к OpenAI API; local faster-whisper/
   whisper.cpp используют `WHISPER_MODEL`/`WHISPER_CPP_MODEL_SIZE` и related local path variables.
 - В текущем doctor server/CORS/mic исправны (delivery `0.86x`, peak `318`, RMS `25`).
-  Единственный отмеченный сбой — server TTS: `enabled=true`, `available=false`, Piper
-  отсутствует. Это эксплуатационный optional-блокер, не V2 migration issue.
+  Server TTS закрыт: Piper и голос `ru_RU-irina-medium` установлены, `/speak` возвращает
+  валидный WAV. Ранее единственным сбоем был `available=false` без Piper.
 - `small` на CPU — ограничение качества/скорости, а не дефект V2-порта.
 - `OPENCODE_VOICE_RETAIN_SECONDS<=0` не удаляет сразу, а отключает scheduled cleanup;
   TTS cache eviction — по размеру, purge пропускает `tts-*`, `voice-tts.log` не имеет
@@ -190,8 +201,8 @@ Cwd-dependent deployment gap закрыт:
 
 `bash sync-plugin.sh --check` подтверждает совпадение всех 19 файлов и завершается exit `0`.
 
-Что всё ещё нельзя объявлять готовым: UX-разница (auto-submit вместо вставки в редактор),
-нежелательный model call для info-сабкоманд, неавтономный typecheck и серверный TTS (Piper).
+Что всё ещё нельзя объявлять готовым: UX-разница (auto-submit вместо вставки в редактор)
+и нежелательный model call для info-сабкоманд. Typecheck и серверный TTS закрыты.
 Подробности — [`V2_MIGRATION.md`](V2_MIGRATION.md).
 
 ## Plugin/TUI restart
@@ -220,14 +231,15 @@ python3 -m pytest        # текущий аудит: 65 collected, exit 0
   не используется.
 - TUI plugin и server plugin нужно перезапустить/перезагрузить после sync или config-time
   изменений.
-- `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test` — Node suite `node --experimental-strip-types --test`; текущий аудит: 93/93 на Node `22.23.3`. Default Node `v18` и `package.json.engines.node >=20` не являются достаточным prerequisite для этого test script; исправление engines/CI — отдельная future task.
+- `PATH=$HOME/.local/opt/node22/bin:$PATH npm test` — Node suite `node --experimental-strip-types --test`; текущий аудит: 93/93 на Node `22.23.3`. Node лежит в `~/.local/opt/node22` — НЕ в `/tmp`: `wsl --shutdown` чистит `/tmp` и уносит Node вместе с ним. `package.json.engines.node` поднят до `>=22.6.0` (реальный prerequisite флага `--experimental-strip-types`).
+- `npm run verify` — sync --check + типы + 93 теста + pytest одной командой.
 - `pytest` — hermetic server suite; текущий аудит: 65 collected, exit 0; микрофон и модель не нужны.
-- TypeScript: `PATH=/tmp/node-v22.23.3-linux-x64/bin:<V1_PROJECT_ROOT>/node_modules/.bin:$PATH npm run typecheck`
-  (underlying `tsc --noEmit`) в этом checkout сейчас недоверен/no-op — local
-  dependencies отсутствуют, а 0-байтовый executable-shim не запускает TypeScript. Отдельная
-  внешняя проверка
-  реально запускала Node 22 с
-  `<V1_PROJECT_ROOT>/node_modules/typescript/bin/tsc` и временным
+- TypeScript: `npm run typecheck` в этом checkout **автономен** — `node_modules` установлен
+  через `npm ci`, `package-lock.json` в репозитории, реально отрабатывает `tsc 5.9.3` с
+  exit 0. Раньше скрипт печатал «tsc: not found» и при этом завершался кодом 0 — тихая
+  поломка, из-за которой CI оставался зелёным на непроверенном коде. Теперь перед `tsc`
+  работает сторож `scripts/ensure-deps.mjs`, который валит сборку с понятным текстом.
+  Историческая внешняя проверка запускала Node 22 с
   external-resolution config `<EXTERNAL_TYPECHECK_CONFIG>` (typeRoots/paths к V1
   dependencies), завершилась exit `0`; это не автономная V2-проверка.
 - `sync-plugin.sh --check` проверяет все 19 поставляемых файлов (entrypoints, `lib/`,

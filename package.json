@@ -30,7 +30,7 @@
     "sync-plugin.sh"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.6.0"
   },
   "repository": {
     "type": "git",
@@ -46,9 +46,11 @@
   },
   "scripts": {
     "dev": "opencode",
-    "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test"
+    "typecheck": "node scripts/ensure-deps.mjs && tsc --noEmit",
+    "build": "node scripts/ensure-deps.mjs && tsc --noEmit",
+    "test": "node --experimental-strip-types --test",
+    "verify": "bash sync-plugin.sh --check && node scripts/ensure-deps.mjs && tsc --noEmit && node --experimental-strip-types --test && python3 -m pytest -q",
+    "pretest": "node scripts/ensure-deps.mjs"
   },
   "dependencies": {
     "@opencode/plugin": "^2.0.0",

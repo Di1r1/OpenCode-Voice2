@@ -1,0 +1,126 @@
+# OpenCode Voice
+
+> © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+
+Голосовой ввод для [OpenCode](https://opencode.ai): нажали кнопку — сказали — текст в
+промпте. Работает в терминале (хоткей), в веб-интерфейсе (кнопка в расширении Chrome) и
+полностью локально: распознавание через `faster-whisper`, без отправки аудио в интернет.
+
+**Версия плагина 0.5.0 · расширение 1.0.36 · проверено на OpenCode v2.0.15**
+
+---
+
+## Быстрый старт
+
+```bash
+git clone https://github.com/Di1r1/OpenCode-Voice2.git
+cd OpenCode-Voice2
+npm ci
+./setup.sh --all          # зависимости + регистрация плагина в OpenCode
+./setup.sh --tts          # озвучка ответов (по желанию)
+opencode serve --hostname 127.0.0.1
+```
+
+Кнопка микрофона в браузере: `chrome://extensions` → «Режим разработчика» →
+«Загрузить распакованное расширение» → папка **`extension`** в проекте.
+
+**Полная инструкция, включая перенос на другую машину и разбор ошибок — в
+[`INSTALL.md`](INSTALL.md).**
+
+---
+
+## Что умеет
+
+| | |
+|---|---|
+| **Push-to-talk в терминале** | `<leader>v` (по умолчанию `ctrl+x`) — запись, авто-стоп по тишине |
+| **Кнопка в браузере** | расширение Chrome для веб-интерфейса OpenCode |
+| **Локальное распознавание** | `faster-whisper` (CPU) или `whisper.cpp` + CUDA (GPU) |
+| **Авто-стоп по тишине** | ~1.5 с тишины после речи, мягкая остановка без обрезки |
+| **Озвучка ответов** | Piper (серверный) или Web Speech (браузерный) |
+| **Диагностика** | `/voice doctor`, `doctor.sh`, `fix-mic.sh`, скиллы `ovi-*` |
+| **Языки** | русский, английский, авто |
+
+Команды: `/voice`, `/voice backend [local\|api]`, `/voice lang [ru\|en\|auto]`,
+`/voice device [auto\|gpu\|cpu]`, `/voice doctor [--fix]`, `/voice heal`, `/voice help`.
+
+---
+
+## Как это устроено
+
+```
+Микрофон ──▶ arecord ──▶ WAV (в RAM, /dev/shm) ──▶ STT-сервер ──▶ текст
+                                          │              │
+                                          ▼              ▼
+                                    бип старт/стоп   faster-whisper / whisper.cpp
+                                                     или OpenAI API
+```
+
+```
+TUI / Chrome ──▶ команда /voice ──▶ плагин (src/index.ts) ──▶ STT :8765
+                          │
+                          └──▶ текст уходит в сессию и запускает модель
+```
+
+- **Плагин** (`src/index.ts`) — регистрирует команды, управляет записью и распознаванием.
+- **TUI-часть** (`src/tui.tsx`) — хоткей и индикатор 🎤.
+- **STT-сервер** (`stt-server/stt_server.py`) — локальный HTTP-сервер: `/transcribe`,
+  `/record/*`, `/beep`, `/speak`, `/health`. Принимает и аудиофайлы, и запись с микрофона.
+- **Расширение** (`extension/`) — кнопка микрофона на странице OpenCode.
+- **Bundle** `.opencode/plugins/voice/` — то, что реально грузит OpenCode. Собирается
+  из исходников скриптом `sync-plugin.sh`; **править нужно исходники, не bundle.**
+
+Аудио пишется в оперативную память (`/dev/shm/opencode-voice`) и удаляется по таймауту
+(`OPENCODE_VOICE_RETAIN_SECONDS`, по умолчанию 300 с).
+
+---
+
+## Приватность
+
+- Распознавание по умолчанию **локальное** — аудио не покидает машину.
+- Сервер слушает `127.0.0.1`. Чтобы открыть в сеть, задайте `OPENCODE_VOICE_TOKEN`:
+  без него любой в сети сможет писать с микрофона и читать расшифровки.
+- Расширение работает только на `localhost` / `127.0.0.1` — `<all_urls>` убран.
+- Токен хранится в `chrome.storage.local`, в коде его нет.
+
+---
+
+## Проверка перед релизом
+
+```bash
+npm test                    # 93/93 — тесты плагина
+python3 -m pytest -q        # 65 passed — тесты STT-сервера
+npm run typecheck           # типы, exit 0
+bash sync-plugin.sh --check # bundle совпадает с исходниками
+```
+
+Или всё сразу: `npm run verify`. Полный прогон также выполняет CI
+(`.github/workflows/ci.yml`): установка, типы, тесты, синтаксис расширения и сверка
+версий манифеста.
+
+---
+
+## Требования
+
+- **Node.js ≥ 22.6** — обязателен: тесты используют `--experimental-strip-types`
+- **Python ≥ 3.10** — STT-сервер
+- `alsa-utils` — `arecord` / `aplay` для микрофона и бипов
+- Chrome — для кнопки в браузере
+- **WSL:** `export PULSE_SERVER=unix:/mnt/wslg/PulseServer` (launcher делает это сам)
+
+---
+
+## Документация
+
+| Файл | О чём |
+|---|---|
+| [`INSTALL.md`](INSTALL.md) | установка, перенос на другую машину, решение проблем |
+| [`V2_MIGRATION.md`](V2_MIGRATION.md) | отчёт о миграции на OpenCode V2, матрица статусов |
+| [`AGENTS.md`](AGENTS.md) | правила работы над кодом, архитектура, источники истины |
+| [`TEST_PLAN.md`](TEST_PLAN.md) | ручные и smoke-проверки |
+| [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md) | скиллы `ovi-*` для диагностики и разработки |
+| [`extension/README.md`](extension/README.md) | расширение Chrome, popup, настройки |
+
+## Лицензия
+
+MIT.

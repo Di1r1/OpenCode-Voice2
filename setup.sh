@@ -50,6 +50,22 @@ TTS_PIPER_DIR="$TTS_DIR/piper"
 TTS_VOICES_DIR="${OPENCODE_VOICE_TTS_VOICES_DIR:-$TTS_DIR/voices}"
 OPENCODE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 
+# OpenCode читает и opencode.json, и opencode.jsonc. Если файлов два, берем
+# более новый и обязательно предупреждаем: два файла конфига — классическая
+# причина "плагин то подключен, то нет".
+pick_config_file() {
+  local j="$OPENCODE_CONFIG_DIR/opencode.json" jc="$OPENCODE_CONFIG_DIR/opencode.jsonc"
+  if [ -f "$j" ] && [ -f "$jc" ]; then
+    warn "ВНИМАНИЕ: существуют оба конфига — opencode.json и opencode.jsonc."
+    warn "OpenCode прочитает только один. Сведите их к одному файлу вручную."
+    if [ "$j" -nt "$jc" ]; then echo "$j"; else echo "$jc"; fi
+  elif [ -f "$j" ]; then echo "$j"
+  elif [ -f "$jc" ]; then echo "$jc"
+  else echo "$OPENCODE_CONFIG_DIR/opencode.jsonc"
+  fi
+}
+OPENCODE_CONFIG_FILE="$(pick_config_file)"
+
 C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_DIM=$'\033[2m'; C_OFF=$'\033[0m'
 ok()   { printf '%s✓%s %s\n' "$C_OK" "$C_OFF" "$*"; }
 warn() { printf '%s!%s %s\n' "$C_WARN" "$C_OFF" "$*"; }
@@ -401,13 +417,29 @@ if [ -d "$PLUGINS_SRC" ] && [ "$DO_SYNC" = "1" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 4b. Node-зависимости: без них typecheck/build МОЛЧА ВРУТ (tsc не найден,
+#     а exit code остается 0). Ставим lock-файл, если он есть.
+# ---------------------------------------------------------------------------
+if command -v npm >/dev/null 2>&1; then
+  if [ -f package-lock.json ]; then
+    if npm ci >/dev/null 2>&1; then ok "node-зависимости установлены (npm ci)"
+    else warn "npm ci не удался — если проект на /mnt/c (v9fs), помогает перенос в файловую систему Linux"; fi
+  else
+    if npm install >/dev/null 2>&1; then ok "node-зависимости установлены (npm install)"
+    else warn "npm install не удался — typecheck/build останутся нерабочими"; fi
+  fi
+else
+  warn "npm не найден: поставьте Node 22.6+ — без него npm test и typecheck не работают"
+fi
+
+# ---------------------------------------------------------------------------
 # 5. Конфиг OpenCode: показать (или записать с --write-config)
 # ---------------------------------------------------------------------------
 PLUGIN_ENTRY="$HERE/.opencode/plugins/voice"
 
 print_config() {
   cat <<EOF
-Добавьте в ~/.config/opencode/opencode.jsonc (команда /voice регистрируется
+Добавьте в $OPENCODE_CONFIG_FILE (команда /voice регистрируется
 самим плагином, отдельный блок commands не нужен; TUI-часть подхватывается
 автоматически вместе с плагином):
 
@@ -426,7 +458,7 @@ if [ "$CONFIGURE" = "1" ]; then
   if [ "$WRITE_CONFIG" != "1" ]; then
     print_config
   else
-    python3 - "$OPENCODE_CONFIG_DIR/opencode.jsonc" "$PLUGIN_ENTRY" "$HERE/.opencode/skills" <<'PY'
+    python3 - "$OPENCODE_CONFIG_FILE" "$PLUGIN_ENTRY" "$HERE/.opencode/skills" <<'PY'
 import json, os, shutil, sys
 cfg, entry, skills = sys.argv[1], sys.argv[2], sys.argv[3]
 plugin_url = "file://" + entry

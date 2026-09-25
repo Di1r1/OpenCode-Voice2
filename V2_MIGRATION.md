@@ -16,8 +16,8 @@
 
 1. V2-команда отправляет транскрипт в сессию и сразу запускает модель, а не вставляет его
    в редактор. Это рабочий, но частично адаптированный UX относительно V1.
-2. Физическое нажатие `<leader>v` не подтверждено отдельным живым событием, а качество STT
-   ограничено моделью `small` на CPU.
+2. Качество STT ограничено моделью `small` на CPU — это эксплуатационная конфигурация,
+   а не дефект порта. Физический `<leader>v` подтверждён живьём, см. матрицу статусов.
 
 Итоговая классификация: **ядро V2 — работает; P0-блокеры безопасности и поставки закрыты;
 полная автономная V2 migration — не завершена** (UX-контракт и часть debt-обязательств
@@ -37,7 +37,7 @@
 2. **Extension scope — закрыт.** `<all_urls>` удалён из `content_scripts.matches`; остались
    только `http://localhost:*/*` и `http://127.0.0.1:*/*`. STT-цель больше не выводится из
    `location.hostname` и сохраняется только для доверенных loopback-источников. Версия
-   расширения поднята до `1.0.35` (согласованно в `manifest.json` и `content.js`).
+   расширения поднята до `1.0.36` (согласованно в `manifest.json` и `content.js`).
 3. **Deployment gap — закрыт.** `sync-plugin.sh` теперь поставляет в bundle не только
    entrypoints, но и `lib/`, `stt-server/`, `shared/`, `doctor.sh` и `fix-mic.sh`, с
    пофайловым `--check`. Launcher, `heal`, `whisper` и `text` научились находить ресурсы
@@ -55,9 +55,13 @@
   тестов: 13 на shell boundary, 4 на поставку bundle);
 - `python3 -m pytest -q` — **65 passed**, exit `0`;
 - `bash sync-plugin.sh --check` — **exit `0`**, все 19 файлов `OK`;
-- `npm run typecheck` (underlying `tsc --noEmit`) — **не доверенный/no-op**: в V2 отсутствуют
-  local dependencies, а использованный 0-байтовый executable-shim не запускает TypeScript;
-- отдельный external-dependency typecheck — **exit `0`**: Node 22 напрямую запустил
+- `npm run typecheck` — **автономен, exit `0`**: зависимости установлены через `npm ci`
+  (98 пакетов, `package-lock.json` в репозитории), отрабатывает настоящий `tsc 5.9.3`.
+  Сторож `scripts/ensure-deps.mjs` валит скрипт, если зависимостей нет, — раньше
+  «tsc: not found» завершался кодом 0 и оставлял CI зелёным на непроверенном коде;
+- CI в `.github/workflows/ci.yml`: `npm ci`, sync --check, типы, 93 теста, 65 pytest,
+  синтаксис расширения и сверка версий манифеста;
+- исторический external-dependency typecheck — **exit `0`**: Node 22 напрямую запустил
   `<V1_PROJECT_ROOT>/node_modules/typescript/bin/tsc` с временным
   external-resolution config `<EXTERNAL_TYPECHECK_CONFIG>` (typeRoots/paths к V1
   dependencies). Это не автономная проверка V2.
@@ -94,7 +98,7 @@ On-disk files authoritative для следующей загрузки; automati
 | Регистрация через transform | **Работает** | `ctx.command.transform(editor => editor.add(...))` в `src/index.ts` и загруженной копии | V2 callback API используется без выдуманного transform ID |
 | PTT: запись → микрофон → STT → текст | **Работает** | Живая запись `2026-09-24T21:55:32.539Z`, `source=command`, `dur=9.63s`, непустая русская фраза | Основной голосовой путь реально проходит end-to-end |
 | Кнопка Chrome extension | **Работает** | Живая запись `2026-09-24T21:56:38Z`, `source=button`, непустая русская фраза | Второй capture/transcription путь реально работает |
-| Версия extension bundle | **Работает** | `extension/manifest.json` содержит `1.0.35`; `extension/content.js` печатает `content.js v1.0.35 loaded` | Manifest и загружаемый bundle согласованы |
+| Версия extension bundle | **Работает** | `extension/manifest.json` содержит `1.0.36`; `extension/content.js` печатает `content.js v1.0.36 loaded`; пользователь подтвердил работу в Chrome | Manifest и загружаемый bundle согласованы |
 | Extension permissions / injection scope | **Работает** (P0 закрыт в этом проходе) | `content_scripts.matches` = только `http://localhost:*/*` и `http://127.0.0.1:*/*`; `<all_urls>` удалён. STT-цель не выводится из `location.hostname` и сохраняется только для loopback (`TRUSTED_STT_HOSTS`) | Effective injection scope сужен до trusted local origins; least-privilege достигнут по content scripts |
 | Shell adapter security boundary | **Работает** (P0 закрыт в этом проходе) | `src/lib/shell.ts` не использует `/bin/bash`: значения передаются как argv через `execFile` с `shell:false`; 13 тестов в `test/shell.test.mjs` на shell metacharacters; проверено на живых call-sites | Adapter теперь действительно security boundary |
 | STT server health | **Работает** | Live `/health` вернул HTTP 200: `faster-whisper 1.2.1`, модель `small`, устройство CPU | Локальное распознавание доступно |
@@ -106,10 +110,10 @@ On-disk files authoritative для следующей загрузки; automati
 | Info-сабкоманды | **Частично** | `backend`, `lang`, `device`, `help`, `doctor`, `heal` отвечают; `svc(...)` проходит через `ctx.session.prompt` | Запрос не пустой, но модель всё равно вызывается без необходимости |
 | Автозапуск/watchdog именно V2 bundle | **Работает** (P0 закрыт в этом проходе) | `server-launcher.ts` ищет `stt-server/stt_server.py` и относительно bundle (`../stt-server/`), и относительно исходников; `test/deploy.test.mjs` проверяет резолв **внутри** bundle из постороннего temp-cwd | Cwd-dependent deployment gap устранён |
 | Самостоятельность V2 bundle | **Работает** (P0 закрыт в этом проходе) | `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`; `bash sync-plugin.sh --check` — exit `0` по всем 19 файлам; `test/deploy.test.mjs` валидирует именно поставленный bundle | Локальная поставка воспроизводима одной проверкой sync |
-| Серверный TTS (Piper) | **Не работает** | Health: `tts.enabled=true`, `tts.available=false`; Piper отсутствует | Озвучка ответов требует отдельной установки/настройки |
-| Автономный typecheck в checkout | **Частично** | `npm run typecheck` — no-op из-за 0-байтового shim и отсутствия local deps; отдельный Node 22 + V1 `typescript/bin/tsc` + `<EXTERNAL_TYPECHECK_CONFIG>` завершился exit `0` | Внешняя проверка успешна, но не автономна для V2 |
-| Node prerequisite для test command | **Частично** | Default Node `v18`; `93/93` только на Node `22.23.3`; `package.json.engines.node >=20` не означает достаточный test prerequisite | Нужна future code/config task, package.json в этом проходе не менялся |
-| Полная автономная V2 migration | **Частично** | P0-блокеры (shell boundary, extension scope, deployment gap) закрыты и покрыты тестами; остаются UX-разница, TUI tooling mismatch и автономность typecheck | Ядро и безопасность закрыты; полная автономность требует отдельных task |
+| Серверный TTS (Piper) | **Работает** | `piper-tts 1.8.0` + голос `ru_RU-irina-medium` (63 МБ) в `~/.local/share/opencode-voice/tts`; health `available=true`; `/speak` → 200, валидный RIFF WAV; CORS с Origin расширения проходит | Озвучка работает; голос подхватывается автоматически, `setup.sh --tts` ставит Piper и голоса |
+| Автономный typecheck в checkout | **Работает** | `npm ci` даёт 98 пакетов и `package-lock.json`; `npm run typecheck` → `✓ зависимости на месте (typescript 5.9.3)`, `tsc --noEmit` exit `0`; `scripts/ensure-deps.mjs` не даёт «тихо зелёному» | Проверка типов автономна и не может молча сорваться |
+| Node prerequisite для test command | **Работает** | `package.json.engines.node` = `>=22.6.0` (реальный минимум для `--experimental-strip-types`); Node 22 живёт в `~/.local/opt/node22`, не в `/tmp` | `wsl --shutdown` чистит `/tmp`, поэтому Node держим в `$HOME`, а не во временном каталоге |
+| Полная автономная V2 migration | **Частично** | P0-блокеры (shell boundary, extension scope, deployment gap), typecheck, TTS и физический хоткей закрыты; остаются UX-разница (auto-submit) и model call для info-сабкоманд | Ядро, безопасность и поставка закрыты; остатки — UX-долг |
 
 ## V2 API и точка регистрации
 

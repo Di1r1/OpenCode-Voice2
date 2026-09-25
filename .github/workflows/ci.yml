@@ -1,0 +1,66 @@
+# OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+# CI: hermetic checks. No microphone, no GPU, no model download required.
+
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --experimental-strip-types (npm test) появился в Node 22.6.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+          cache: npm
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python-зависимости
+        run: python -m pip install --upgrade pip && pip install -r stt-server/requirements-dev.txt
+
+      - name: Поставка bundle согласована с исходниками
+        run: bash sync-plugin.sh --check
+
+      - name: Типы
+        run: npm run typecheck
+
+      - name: Тесты плагина
+        run: node --experimental-strip-types --test
+
+      - name: Тесты STT-сервера
+        run: python -m pytest -q
+
+      - name: Синтаксис расширения
+        run: |
+          node --check extension/content.js
+          node --check extension/popup.js
+          node --check extension/tts.js
+
+      - name: Манифест расширения согласован
+        run: |
+          node -e '
+            const fs = require("fs");
+            const m = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
+            const src = fs.readFileSync("extension/content.js", "utf8");
+            const hits = [...src.matchAll(/content\.js v([0-9.]+) loaded/g)].map(x => x[1]);
+            if (!hits.length) throw new Error("в content.js нет строки версии");
+            for (const v of hits) {
+              if (v !== m.version) throw new Error("расхождение версий: manifest " + m.version + " vs content.js " + v);
+            }
+            const match = JSON.stringify(m.content_scripts[0].matches);
+            if (match.includes("all_urls")) throw new Error("<all_urls> вернулся в content_scripts.matches");
+            console.log("manifest " + m.version + " OK, matches " + match);
+          '
