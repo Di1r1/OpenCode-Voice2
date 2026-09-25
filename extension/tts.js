@@ -202,6 +202,7 @@
     var logTail = [];
     var stats = { events: 0, lastType: "", lastSid: "", finalized: 0, lastSkip: "", sourceState: "none" };
     var lastPoll = 0;
+    var pollDirty = false; // событие message.*/session.* — опрос пора обновить
     var noVoiceRetries = 0;
     var speakFailures = 0;
     var dbg = function () {
@@ -294,6 +295,10 @@
       var sessionID = d.sessionID || (frame.durable && frame.durable.aggregateID);
       stats.events++; stats.lastType = frame.type; stats.lastSid = sessionID || "";
       dbg("event", frame.type, sessionID);
+      // События теперь в пространстве имён (message.part.*, session.step.*).
+      // Формат payload меняется между версиями, поэтому вместо разбора шлём
+      // сигнал «опрос устарел» и читаем состояние через API — оно едино.
+      if (/^(message|session)\./.test(frame.type || "")) pollDirty = true;
       if (frame.type === "message.updated") {
         var info = d.info || {};
         if (!info.id) return;
@@ -388,9 +393,21 @@
               if (!best || t > best.t) best = { id: s.id, t: t };
             }
             if (!best) return;
-            return win.fetch("/session/" + best.id + "/message?limit=3", { headers: { Accept: "application/json" } })
-              .then(function (r2) { return r2.json(); })
-              .then(function (msgs) { onSnapshot(Array.isArray(msgs) ? msgs : []); });
+            // Путь сообщений: /session/{id}/message — V1-стиль, на веб-сервере
+            // такого маршрута нет и приходит HTML-заглушка. Раньше здесь стоял
+            // голый r2.json() — он и давал «Unexpected token '<'» в отладке.
+            var msgPath = "/api/session/" + best.id + "/message?limit=3";
+            return win.fetch(msgPath, { headers: { Accept: "application/json" }, credentials: "same-origin" })
+              .then(function (r2) {
+                var ct = (r2.headers && r2.headers.get("content-type")) || "";
+                if (r2.status === 401) { dbg("poll: 401 на сообщениях — нужен пароль сервера"); return []; }
+                if (ct.indexOf("json") === -1) { dbg("poll: сообщения вернули " + (ct.split(";")[0] || "?") + ", не JSON"); return []; }
+                return r2.json();
+              })
+              .then(function (msgs) {
+                var body = msgs && msgs.data ? msgs.data : msgs;
+                onSnapshot(Array.isArray(body) ? body : []);
+              });
           })
           .catch(function (e) { dbg("poll failed", e && e.message); });
       } catch (e) { dbg("poll threw", e); }
@@ -763,7 +780,12 @@
         return;
       }
       var now = Date.now();
-      if (settings.tts && now - lastPoll > 2000) { lastPoll = now; pollOnce(); }
+      // Пришло событие message.*/session.* — не ждём обычного двухсекундного
+      // такта, а читаем состояние сразу: ответ уже завершён, озвучивать надо
+      // сейчас, иначе пользователь ждёт лишние секунды.
+      if (settings.tts && (pollDirty || now - lastPoll > 2000)) {
+        lastPoll = now; pollDirty = false; pollOnce();
+      }
       if (getPhase() !== "idle") {
         if (speaking) { var cur = pending; stopSpeaking(false); pending = cur; }
       } else if (pending && !speaking) {
