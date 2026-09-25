@@ -27,7 +27,7 @@
 #             OPENCODE_VOICE_WHISPER_DIR (по умолчанию $OPENCODE_VOICE_HOME/whisper),
 #             CUDA_HOME/CUDA_PATH (если CUDA Toolkit в нестандартном месте);
 #             OPENCODE_VOICE_TTS_HOME/VOICES_DIR (для --tts),
-#             OPENCODE_VOICE_TTS_VOICES(_EN) (наборы голосов RU/EN).
+#             OPENCODE_VOICE_TTS_VOICES(_EN)(_PL) (наборы голосов RU/EN/PL).
 
 set -euo pipefail
 
@@ -226,7 +226,7 @@ if [ "$CHECK_ONLY" = "1" ]; then
   n=0
   if [ "$DO_PIP" = "1" ]; then n=$((n+1)); echo "  $n. python3 -m pip install -r stt-server/requirements.txt (faster-whisper)"; fi
   if [ "$MODE_GPU" = "1" ]; then n=$((n+1)); echo "  $n. собрать whisper.cpp с CUDA и скачать ggml-$MODEL_SIZE.bin в $WHISPER_DIR"; fi
-  if [ "$DO_TTS" = "1" ]; then n=$((n+1)); echo "  $n. скачать Piper, русские голоса (${OPENCODE_VOICE_TTS_VOICES:-irina dmitri denis ruslan}) и английские (${OPENCODE_VOICE_TTS_VOICES_EN:-lessac}) в $TTS_DIR"; fi
+  if [ "$DO_TTS" = "1" ]; then n=$((n+1)); echo "  $n. скачать Piper и голоса — русские (${OPENCODE_VOICE_TTS_VOICES:-irina dmitri denis ruslan}), английские (${OPENCODE_VOICE_TTS_VOICES_EN:-lessac}), польские (${OPENCODE_VOICE_TTS_VOICES_PL:-gosia darkman}) в $TTS_DIR"; fi
   if [ "$DO_TTS" = "1" ]; then n=$((n+1)); echo "  $n. записать $HOME_DIR/env.sh (OPENCODE_VOICE_TTS=1, бинарь и каталог голосов)"; fi
   if [ "$WRITE_CONFIG" = "1" ]; then n=$((n+1)); echo "  $n. записать пути плагина в конфиг OpenCode (с бэкапом)"; fi
   if [ "$DO_SYNC" = "1" ]; then n=$((n+1)); echo "  $n. bash sync-plugin.sh (сгенерировать entry-файлы)"; fi
