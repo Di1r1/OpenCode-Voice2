@@ -459,7 +459,7 @@
     }
 
     function enqueue(text) {
-      if (getPhase() !== "idle") { pending = text; return; }
+      if (getPhase() !== "idle" || speaking) { pending = text; return; }
       speak(text);
     }
 
@@ -481,6 +481,14 @@
     }
 
     function speak(text) {
+      // Единая точка входа. Раньше она не проверяла занятость, поэтому любой
+      // второй вызов (тест в popup, tick, enqueue) начинал говорить поверх уже
+      // идущей речи — два AudioBufferSource / два utterance звучали одновременно.
+      // Гарантия: одновременно говорит только один голос.
+      if (speaking) {
+        dbg("speak: прерываю текущую речь перед новой");
+        stopSpeaking(false);
+      }
       if (settings.ttsEngine === "server" && serverUrl) { speakServer(text); return; }
       speakBrowser(text);
     }
