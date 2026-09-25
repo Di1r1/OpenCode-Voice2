@@ -44,7 +44,8 @@ npm ci            # есть package-lock.json — строго по нему
 файловую систему Linux:
 
 ```bash
-cp -r /mnt/c/temp/openvi2 ~/projects/opencode-voice
+# /mnt/c (v9fs) даёт EACCES на rename — проекту нужна обычная ФС Linux
+cp -r /path/to/opencode-voice ~/projects/opencode-voice
 cd ~/projects/opencode-voice && rm -rf node_modules && npm ci
 ```
 
