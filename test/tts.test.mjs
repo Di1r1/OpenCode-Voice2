@@ -208,3 +208,98 @@ test("манифест репозитория применим расширен�
   assert.equal(TTS.markedSpoken("🔈 готово к проверке"), "готово к проверке")
   TTS.applyManifest(null)
 })
+
+// ---------------------------------------------------------------------------
+// Шкала подробности озвучки (1.0.47). Уровень приезжает манифестом, поэтому
+// проверяем и дефолты, и настоящий файл shared/tts-manifest.json.
+// ---------------------------------------------------------------------------
+
+test("tts.js exposes the level helpers", () => {
+  for (const name of ["capChars", "mLevel", "mLevelOrder", "levelId"]) {
+    assert.equal(typeof TTS[name], "function", `missing ${name}`)
+  }
+})
+
+test("шкала по умолчанию: пять уровней от тихого к полному", () => {
+  const order = TTS.mLevelOrder()
+  // Песочница vm — другой realm, у массива чужой Array.prototype, поэтому
+  // deepStrictEqual ругается на «structure but not reference-equal». Сравниваем строками.
+  assert.equal(Array.from(order).join(","), "quiet,normal,more,verbose,full")
+  for (const id of order) {
+    const cfg = TTS.mLevel(id)
+    assert.ok(cfg, `уровень ${id} не описан`)
+    assert.equal(typeof cfg.sentences, "number", `у ${id} нет sentences`)
+    assert.equal(typeof cfg.maxChars, "number", `у ${id} нет maxChars`)
+  }
+})
+
+test("больше уровень — больше текста (монотонность)", () => {
+  const text = "Раз. Два. Три. Четыре. Пять. Шесть. Семь. Восемь."
+  const out = ["quiet", "normal", "more", "verbose", "full"].map((id) => TTS.pickSpoken(text, id))
+  for (let i = 1; i < out.length; i++) {
+    assert.ok(out[i].length >= out[i - 1].length,
+      `уровень ${i} прочитал меньше предыдущего: "${out[i]}" против "${out[i - 1]}"`)
+  }
+  assert.equal(out[0], "Раз.")
+  assert.equal(out[1], "Раз. Два.")
+  assert.equal(out[2], "Раз. Два. Три. Четыре.")
+  assert.equal(out[4], text, "full читает всё целиком")
+})
+
+test("потолок символов режет по границе предложения, а не по середине слова", () => {
+  assert.equal(TTS.capChars("Короткий текст.", 100), "Короткий текст.")
+  assert.equal(TTS.capChars("Ноль означает без ограничения.", 0), "Ноль означает без ограничения.")
+  // Первое предложение длиннее потолка — обрыв по слову плюс многоточие.
+  const long = "Очень длинное предложение которое не помещается в потолок совсем."
+  const cut = TTS.capChars(long, 30)
+  assert.ok(cut.length <= 31, `потолок превышен: ${cut.length}`)
+  assert.ok(cut.endsWith("…"), "обрыв должен быть помечен многоточием")
+  assert.equal(cut.trim().replace(/…$/, ""), long.slice(0, 30).replace(/\s+\S*$/, ""))
+  // Несколько предложений — режем по границе.
+  const many = "Раз. Два. Три. Четыре."
+  assert.equal(TTS.capChars(many, 12), "Раз. Два.", "лишние предложения отброшены целиком")
+})
+
+test("уровень уважает потолок maxChars", () => {
+  // Каждое предложение ~40 символов, 10 предложений — потолок должен сработать.
+  const one = "Это предложение занимает примерно сорок символов текста."
+  const text = Array(10).fill(one).join(" ")
+  for (const id of ["quiet", "normal", "more", "verbose"]) {
+    const cfg = TTS.mLevel(id)
+    if (!(cfg.maxChars > 0)) continue
+    const out = TTS.pickSpoken(text, id)
+    assert.ok(out.length <= cfg.maxChars, `${id}: ${out.length} > потолка ${cfg.maxChars}`)
+  }
+})
+
+test("сохранённый старый режим brief мигрирует в normal", () => {
+  assert.equal(TTS.levelId("brief"), "normal", "brief должен стать normal")
+  assert.equal(TTS.levelId("nonsense"), "normal", "неизвестный режим падает в normal")
+  assert.equal(TTS.levelId("verbose"), "verbose", "новый уровень не трогаем")
+})
+
+test("manual — не уровень: без метки молчит, с меткой говорит", () => {
+  for (const id of ["quiet", "normal", "more", "verbose", "full"]) {
+    assert.equal(TTS.pickSpoken("Раз. Два. Три.", "manual"), "", "manual обязан молчать без метки")
+    assert.equal(TTS.pickSpoken("🔈 Раз. Два. Три.", "manual"), "Раз. Два. Три.",
+      `manual с меткой обязан говорить на любом уровне (${id})`)
+  }
+})
+
+test("метка важнее любого уровня, включая full", () => {
+  assert.equal(TTS.pickSpoken("🔈 только это", "full"), "только это")
+})
+
+test("реальный манифест задаёт шкалу целиком", () => {
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  const order = TTS.mLevelOrder()
+  assert.ok(order.length >= 3, `в манифесте должно быть не меньше трёх уровней, а не ${order.length}`)
+  for (const id of order) {
+    const cfg = TTS.mLevel(id)
+    assert.ok(cfg, `уровень ${id} есть в levelOrder, но не описан в levels`)
+    assert.equal(typeof cfg.label, "string", `у ${id} нет подписи — она нужна для popup`)
+  }
+  // Подписи едут из манифеста — на другой машине шкала подхватится сама.
+  assert.ok(order.every((id) => TTS.mLevel(id).label.length > 0), "подписи уровней пустые")
+  TTS.applyManifest(null)
+})

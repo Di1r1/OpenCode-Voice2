@@ -39,7 +39,17 @@ _SPEC_PATH = Path(__file__).resolve().parents[1] / "shared" / "stt-spec.json"
 _MANIFEST_PATH = Path(__file__).resolve().parents[1] / "shared" / "tts-manifest.json"
 _FALLBACK_MANIFEST = {
     "version": 1,
-    "speak": {"mode": "manual", "marker": "🔈", "briefSentences": 2, "interChunkPauseMs": 220},
+    "speak": {
+        "mode": "normal", "marker": "🔈", "briefSentences": 2, "interChunkPauseMs": 220,
+        "levelOrder": ["quiet", "normal", "more", "verbose", "full"],
+        "levels": {
+            "quiet": {"label": "Только важное", "sentences": 1, "maxChars": 120},
+            "normal": {"label": "Кратко", "sentences": 2, "maxChars": 220},
+            "more": {"label": "Подробно", "sentences": 4, "maxChars": 400},
+            "verbose": {"label": "Очень подробно", "sentences": 6, "maxChars": 700},
+            "full": {"label": "Всё целиком", "sentences": 0, "maxChars": 0},
+        },
+    },
     "alwaysVoicePrefixes": [],
     "neverVoicePatterns": ["```", "http://", "https://", "/mnt/"],
     "voice": {"engine": "server", "serverVoice": "", "rate": 1.0},

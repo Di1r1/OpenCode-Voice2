@@ -808,7 +808,14 @@ def test_manifest_ships_the_shipped_policy(client):
     assert body["status"] == "ok"
     assert body["source"] == "shared/tts-manifest.json"
     assert body["version"] == 1
-    assert body["speak"]["mode"] in ("manual", "brief", "full")
+    assert body["speak"]["mode"] in (
+        "manual",
+        "quiet",
+        "normal",
+        "more",
+        "verbose",
+        "full",
+    ), f"неизвестный режим озвучки: {body['speak']['mode']!r}"
     assert body["speak"]["marker"], "маркер озвучки не должен быть пустым"
     # Фолбэк содержит 0/4 — реальный манифест заметно полнее.
     assert len(body["alwaysVoicePrefixes"]) > 4, "манифест не прочитан, отдан фолбэк"
@@ -840,7 +847,7 @@ def test_manifest_falls_back_when_file_missing(client, monkeypatch, tmp_path):
     monkeypatch.setattr(srv, "_MANIFEST_PATH", tmp_path / "no-such-file.json")
     body = client.get("/manifest").get_json()
     assert body["status"] == "ok"
-    assert body["speak"]["mode"] == "manual"
+    assert body["speak"]["mode"] == "normal", "фолбэк должен указывать на реальный уровень шкалы"
     assert body["neverVoicePatterns"] == ["```", "http://", "https://", "/mnt/"]
 
 
@@ -861,3 +868,44 @@ def test_manifest_requires_token(client, monkeypatch, tmp_path):
     ok = client.get("/manifest", headers={"X-Voice-Token": "s3cret"})
     assert ok.status_code == 200
     assert ok.get_json()["status"] == "ok"
+
+
+# --- /manifest: шкала подробности озвучки (1.0.47) --------------------------
+
+
+def test_manifest_ships_the_verbosity_scale(client):
+    """Шкала подробности приезжает манифестом, вместе с подписями для popup."""
+    speak = client.get("/manifest").get_json()["speak"]
+    order = speak.get("levelOrder")
+    levels = speak.get("levels")
+    assert isinstance(order, list) and order, "нет levelOrder"
+    assert isinstance(levels, dict) and levels, "нет levels"
+    assert len(order) >= 3, f"уровней должно быть не меньше трёх, а не {len(order)}"
+    # Каждый уровень из порядка обязан быть описан, иначе расширение упадёт в normal.
+    for level_id in order:
+        cfg = levels.get(level_id)
+        assert isinstance(cfg, dict), f"уровень {level_id} есть в levelOrder, но не описан"
+        assert cfg.get("label"), f"у уровня {level_id} нет подписи — она нужна popup"
+        assert isinstance(cfg.get("sentences"), int), f"у {level_id} нет sentences"
+        assert isinstance(cfg.get("maxChars"), int), f"у {level_id} нет maxChars"
+
+
+def test_verbosity_scale_is_monotonic(client):
+    """Чем выше уровень в levelOrder, тем больше текста он успевает прочесть."""
+    speak = client.get("/manifest").get_json()["speak"]
+    levels, order = speak["levels"], speak["levelOrder"]
+    # Последний уровень — «читать всё», у него потолка быть не должно.
+    assert levels[order[-1]]["maxChars"] == 0, "верхний уровень должен быть без потолка"
+    # Уровни с потолком обязаны отдавать всё больше символов.
+    bounded = [(levels[i]["maxChars"], i) for i in order if levels[i]["maxChars"] > 0]
+    for (prev_cap, prev_id), (cap, level_id) in zip(bounded, bounded[1:]):
+        assert cap >= prev_cap, f"уровень {level_id} жёстче предыдущего {prev_id}"
+
+
+def test_manifest_fallback_keeps_the_scale(client, monkeypatch, tmp_path):
+    """Даже без файла сервер отдаёт шкалу, чтобы popup не остался пустым."""
+    monkeypatch.setattr(srv, "_MANIFEST_PATH", tmp_path / "no-such-file.json")
+    speak = client.get("/manifest").get_json()["speak"]
+    assert speak["levelOrder"], "во фолбэке пропала шкала"
+    for level_id in speak["levelOrder"]:
+        assert level_id in speak["levels"], f"во фолбэке нет уровня {level_id}"

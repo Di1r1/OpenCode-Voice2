@@ -48,11 +48,14 @@
       <option value="server" data-i18n="eng_server">Сервер (Piper; нужен OPENCODE_VOICE_TTS=1)</option>
     </select>
   </label>
-  <label class="toggle" style="display:block"><span data-i18n="ttsModeLabel">Режим озвучки</span>
+  <label class="toggle" style="display:block"><span data-i18n="ttsModeLabel">Уровень озвучки</span>
     <select id="ttsMode"
       style="width:100%;padding:6px;margin-top:4px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-      <option value="brief" data-i18n="mode_brief">Кратко (первые предложения)</option>
-      <option value="full" data-i18n="mode_full">Полностью</option>
+      <option value="quiet" data-i18n="mode_quiet">Только важное</option>
+      <option value="normal" data-i18n="mode_normal">Кратко</option>
+      <option value="more" data-i18n="mode_more">Подробно</option>
+      <option value="verbose" data-i18n="mode_verbose">Очень подробно</option>
+      <option value="full" data-i18n="mode_full">Всё целиком</option>
       <option value="manual" data-i18n="mode_manual">Только помеченное (🔈)</option>
     </select>
   </label>

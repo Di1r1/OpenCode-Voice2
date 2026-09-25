@@ -34,10 +34,13 @@ const UI = {
     ttsEngineLabel: 'Движок озвучки',
     eng_browser: 'Браузер (Web Speech)',
     eng_server: 'Сервер (Piper; нужен OPENCODE_VOICE_TTS=1)',
-    ttsModeLabel: 'Режим озвучки',
-    mode_brief: 'Кратко (первые предложения)',
+    ttsModeLabel: 'Уровень озвучки',
+    mode_quiet: 'Только важное',
+    mode_normal: 'Кратко',
+    mode_more: 'Подробно',
+    mode_verbose: 'Очень подробно',
+    mode_full: 'Всё целиком',
     mode_manual: 'Только помеченное (🔈)',
-    mode_full: 'Полностью',
     ttsLangLabel: 'Язык озвучки',
     lang_auto: 'Авто (по тексту)',
     lang_ru: 'Русский',
@@ -93,10 +96,13 @@ const UI = {
     ttsEngineLabel: 'TTS engine',
     eng_browser: 'Browser (Web Speech)',
     eng_server: 'Server (Piper; needs OPENCODE_VOICE_TTS=1)',
-    ttsModeLabel: 'TTS mode',
-    mode_brief: 'Brief (first sentences)',
+    ttsModeLabel: 'Speech level',
+    mode_quiet: 'Important only',
+    mode_normal: 'Brief',
+    mode_more: 'Detailed',
+    mode_verbose: 'Very detailed',
+    mode_full: 'Everything',
     mode_manual: 'Only marked (🔈)',
-    mode_full: 'Full',
     ttsLangLabel: 'TTS language',
     lang_auto: 'Auto (by text)',
     lang_ru: 'Russian',
@@ -291,11 +297,17 @@ async function fillServerVoices(selected) {
 }
 
 chrome.storage.local.get(
-  { tts: false, ttsEngine: 'browser', ttsMode: 'brief', ttsLang: 'auto', ttsVoice: '', ttsServerVoice: '', ttsLocalOnly: true, ttsRate: 1.0, ttsDebug: false },
+  { tts: false, ttsEngine: 'browser', ttsMode: 'normal', ttsLang: 'auto', ttsVoice: '', ttsServerVoice: '', ttsLocalOnly: true, ttsRate: 1.0, ttsDebug: false },
   (v) => {
     ttsEl.checked = v.tts === true;
     ttsEngineEl.value = v.ttsEngine || 'browser';
-    ttsModeEl.value = v.ttsMode || 'brief';
+    // Шкала 1.0.47: сохранённый 'brief' становится 'normal' (те же 2 предложения),
+    // а значение не из шкалы не оставляем — иначе список выпадает пустым.
+    const TTS_LEVELS = ['quiet', 'normal', 'more', 'verbose', 'full', 'manual'];
+    let mode = v.ttsMode === 'brief' ? 'normal' : (v.ttsMode || 'normal');
+    if (!TTS_LEVELS.includes(mode)) mode = 'normal';
+    if (mode !== v.ttsMode) chrome.storage.local.set({ ttsMode: mode });
+    ttsModeEl.value = mode;
     ttsLangEl.value = v.ttsLang || 'auto';
     ttsLocalOnlyEl.checked = v.ttsLocalOnly !== false;
     ttsRateEl.value = String(v.ttsRate || 1.0);

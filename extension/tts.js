@@ -127,10 +127,60 @@
   // каждой машине. Пока манифест не приехал — работают значения по умолчанию.
   var MANIFEST = null;
   var DEFAULT_MANIFEST = {
-    speak: { mode: "manual", marker: "\uD83D\uDD08", briefSentences: 2, interChunkPauseMs: 220 },
+    speak: {
+      mode: "normal", marker: "\uD83D\uDD08", briefSentences: 2, interChunkPauseMs: 220,
+      levelOrder: ["quiet", "normal", "more", "verbose", "full"],
+      levels: {
+        quiet: { sentences: 1, maxChars: 120 },
+        normal: { sentences: 2, maxChars: 220 },
+        more: { sentences: 4, maxChars: 400 },
+        verbose: { sentences: 6, maxChars: 700 },
+        full: { sentences: 0, maxChars: 0 }
+      }
+    },
     alwaysVoicePrefixes: [],
     neverVoicePatterns: []
   };
+
+  // Потолок по символам, режем по границам предложений, чтобы не обрывать слово.
+  function capChars(text, n) {
+    if (!n || n <= 0) return String(text || "");
+    var one = String(text || "");
+    if (one.length <= n) return one;
+    var sentences = splitSentences(one);
+    var out = [];
+    var len = 0;
+    for (var i = 0; i < sentences.length; i++) {
+      var add = (out.length ? 1 : 0) + sentences[i].length;
+      if (out.length && len + add > n) break;
+      out.push(sentences[i]);
+      len += add;
+    }
+    // Потолок жёсткий. Первое предложение мы пропускаем целиком, чтобы не
+    // рубить фразу, но если оно одно и длиннее потолка — режем по словам.
+    // Иначе «Только важное» на длинном первом предложении прочитал бы абзац.
+    var joined = out.join(" ");
+    if (joined.length > n) return joined.slice(0, n).replace(/\s+\S*$/, "") + "\u2026";
+    return joined;
+  }
+
+  // Конфигурация уровня подробности. null = такого уровня нет ни в манифесте,
+  // ни в запасе — тогда вызывающий код решает сам.
+  function mLevel(id) {
+    var m = MANIFEST && MANIFEST.speak ? MANIFEST.speak.levels : null;
+    if (m && typeof m === "object" && m[id]) return m[id];
+    return DEFAULT_MANIFEST.speak.levels[id] || null;
+  }
+  function mLevelOrder() {
+    var m = MANIFEST && MANIFEST.speak ? MANIFEST.speak.levelOrder : null;
+    return Array.isArray(m) ? m : DEFAULT_MANIFEST.speak.levelOrder;
+  }
+  // Старый сохранённый режим brief приводим к новому уровню normal.
+  var LEGACY_MODE = { brief: "normal" };
+  function levelId(mode) {
+    var id = LEGACY_MODE[mode] || mode;
+    return mLevel(id) ? id : "normal";
+  }
   function mSpeak(k, d) {
     var m = MANIFEST && MANIFEST.speak ? MANIFEST.speak[k] : undefined;
     if (m !== undefined && m !== null && m !== "") return m;
@@ -187,14 +237,21 @@
     return picked.join(" ");
   }
 
-  // Единое решение: пометка важнее режима.
+  // Порядок приоритета: пометка важнее уровня, уровень важнее автоматики.
+  // manual — не уровень, а отдельная философия: без метки не звучит ничего.
+  // Третий аргумент (briefN) оставлен для совместимости вызова и игнорируется:
+  // с 1.0.47 число предложений задаёт уровень из манифеста, иначе старое
+  // сохранённое значение заблокировало бы шкалу у всех, кто давно пользуется.
   function pickSpoken(text, mode, briefN) {
     var marked = markedSpoken(text);
     if (marked) return marked;
     var always = alwaysSpoken(text);
     if (always) return always;
     if (mode === "manual") return "";
-    return mode === "brief" ? briefSentences(text, briefN, { includeErrors: true }) : text;
+    var cfg = mLevel(levelId(mode)) || {};
+    var sentences = cfg.sentences | 0;
+    if (sentences <= 0) return String(text || "");   // full — без ограничений
+    return capChars(briefSentences(text, sentences, { includeErrors: true }), cfg.maxChars);
   }
 
   // Единая точка применения манифеста: её зовёт и загрузка с сервера, и тесты.
@@ -989,6 +1046,10 @@
     detectLang: detectLang,
     pickVoice: pickVoice,
     briefSentences: briefSentences,
+    capChars: capChars,
+    mLevel: mLevel,
+    mLevelOrder: mLevelOrder,
+    levelId: levelId,
     chunkSentences: chunkSentences,
     markedSpoken: markedSpoken,
     alwaysSpoken: alwaysSpoken,
