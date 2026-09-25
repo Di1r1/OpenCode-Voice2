@@ -1,0 +1,74 @@
+{
+  "name": "@di1r1/opencode-voice",
+  "version": "0.5.0",
+  "description": "Voice control for OpenCode V2: speak, and your words are typed into the prompt",
+  "module": "src/index.ts",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx"
+  },
+  "type": "module",
+  "files": [
+    "src",
+    "stt-server/*.py",
+    "shared/stt-spec.json",
+    "shared/strip-cases.json",
+    "shared/tts-cases.json",
+    "stt-server/requirements.txt",
+    "extension/manifest.json",
+    "extension/content.css",
+    "extension/content.js",
+    "extension/tts.js",
+    "extension/popup.html",
+    "extension/popup.js",
+    "extension/icons",
+    ".opencode/plugins",
+    "doctor.sh",
+    "fix-mic.sh",
+    "setup.sh",
+    "sync-plugin.sh"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Di1r1/OpenCode-Voice.git",
+    "directory": "voice-opencode-plugin"
+  },
+  "homepage": "https://github.com/Di1r1/OpenCode-Voice#readme",
+  "bugs": {
+    "url": "https://github.com/Di1r1/OpenCode-Voice/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "opencode",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test"
+  },
+  "dependencies": {
+    "@opencode/plugin": "^2.0.0",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "@opentui/core": "^0.5.12",
+    "@opentui/keymap": "^0.5.12",
+    "@opentui/solid": "^0.5.12",
+    "@types/node": "^22.0.0",
+    "solid-js": "^1.9.0",
+    "typescript": "^5.8.0"
+  },
+  "keywords": [
+    "opencode",
+    "voice",
+    "whisper",
+    "speech-to-text",
+    "opencode-v2"
+  ],
+  "license": "MIT",
+  "author": "Di1r1"
+}

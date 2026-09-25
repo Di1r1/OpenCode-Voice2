@@ -1,0 +1,16 @@
+[
+  { "label": "drops [музыка] and extra spaces", "in": "Продолжение следует. [музыка] [музыка]", "out": "Продолжение следует." },
+  { "label": "drops (смех) and note symbols", "in": "Раз, два, три (смех) проверка ♪", "out": "Раз, два, три проверка" },
+  { "label": "keeps non-service parentheses", "in": "[Music] hello (to est) world", "out": "hello (to est) world" },
+  { "label": "drops *music* and [applause]", "in": "*music* только шум [applause]", "out": "только шум" },
+  { "label": "plain text unchanged", "in": "Раз-два-три проверка микрофона, как слышно?", "out": "Раз-два-три проверка микрофона, как слышно?" },
+  { "label": "only markers -> empty", "in": "[музыка]", "out": "" },
+  { "label": "collapses spaces and fixes punctuation", "in": "Привет   ,  мир [музыка]", "out": "Привет, мир" },
+  { "label": "case-insensitive, notes removed", "in": "(MUSIC) [MUSIC] ♪♫♬", "out": "" },
+  { "label": "russian service markers", "in": "(шум) (тишина) (неразборчиво)", "out": "" },
+  { "label": "parentheses with text are kept", "in": "текст (то есть пояснение) ещё", "out": "текст (то есть пояснение) ещё" },
+  { "label": "collapses repeated spaces", "in": "а    б", "out": "а б" },
+  { "label": "empty string", "in": "", "out": "" },
+  { "label": "mixed english service markers", "in": "(applause) [Music] final", "out": "final" },
+  { "label": "whisper-style speech marker", "in": "[speaking in foreign language] привет", "out": "привет" }
+]

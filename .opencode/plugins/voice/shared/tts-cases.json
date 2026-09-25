@@ -1,0 +1,21 @@
+[
+  { "label": "removes heading marker", "in": "## Заголовок", "out": "Заголовок" },
+  { "label": "strips bold and italic markers", "in": "**жирный** и *курсив*", "out": "жирный и курсив" },
+  { "label": "markdown link keeps text", "in": "Смотри [документацию](https://example.com/docs).", "out": "Смотри документацию." },
+  { "label": "fenced code becomes placeholder", "in": "Код:\n```python\nprint('hi')\n```\nконец", "out": "Код: …код… конец" },
+  { "label": "fenced code is read when readCode", "in": "Итого:\n```js\nconst x = 1\n```", "out": "Итого: const x = 1", "readCode": true },
+  { "label": "inline code keeps inner text", "in": "Запусти `npm test` сейчас", "out": "Запусти npm test сейчас" },
+  { "label": "removes list bullets", "in": "- пункт один\n- пункт два", "out": "пункт один пункт два" },
+  { "label": "removes ordered list numbers", "in": "1. первый\n2. второй", "out": "первый второй" },
+  { "label": "removes blockquote marker", "in": "> цитата\n\nобычный", "out": "цитата обычный" },
+  { "label": "strips strikethrough", "in": "~~удалено~~ осталось", "out": "удалено осталось" },
+  { "label": "removes bare url", "in": "Ссылка https://example.com/page тут", "out": "Ссылка тут" },
+  { "label": "removes autolink", "in": "<https://example.com/auto>", "out": "" },
+  { "label": "flattens markdown table", "in": "| A | B |\n|---|---|\n| 1 | 2 |", "out": "A B 1 2" },
+  { "label": "removes horizontal rule", "in": "текст\n\n---\n\nдальше", "out": "текст дальше" },
+  { "label": "removes image", "in": "![схема](img.png) конец", "out": "конец" },
+  { "label": "removes html comment", "in": "до <!-- секрет --> после", "out": "до после" },
+  { "label": "plain text unchanged", "in": "Раз-два-три, проверка.", "out": "Раз-два-три, проверка." },
+  { "label": "collapses whitespace", "in": "а    б\tв", "out": "а б в" },
+  { "label": "empty string", "in": "", "out": "" }
+]

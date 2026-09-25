@@ -1,0 +1,26 @@
+{
+  "$comment": "Single source of truth. Mirrored by src/lib (TypeScript) and stt-server/stt_server.py (Python). Both read this file at runtime; edit here, not in the code.",
+  "version": 1,
+  "nonSpeechKeywords": [
+    "музык", "music", "аплодисмент", "applause", "смех", "laugh", "тишин", "silence",
+    "шум", "noise", "звук", "sound", "свист", "whistl", "кашел", "кашл", "cough",
+    "вздох", "sigh", "шёпот", "шепот", "whisper", "неразборчив", "inaudible", "пауза",
+    "paus", "гудок", "сигнал", "signal", "звон", "ring", "стук", "knock", "хлопок",
+    "clap", "помех", "static", "инструментал", "instrumental", "мужской голос", "женский голос"
+  ],
+  "nonSpeechSymbols": "♪♫♬♩♭♮#",
+  "silence": { "peak": 700, "rms": 80 },
+  "whisperCppExtraFlags": ["-mc", "0", "-sns"],
+  "defaultModelByDevice": { "gpu": "medium", "cpu": "small" },
+  "tts": {
+    "engine": "piper",
+    "voice": "ru_RU-irina-medium",
+    "rate": 1.0,
+    "maxChars": 300,
+    "briefSentences": 2,
+    "mode": "brief",
+    "lang": "auto",
+    "localOnly": true,
+    "maxSeconds": 60
+  }
+}

@@ -1,0 +1,24 @@
+node_modules
+.DS_Store
+*.log
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# secrets & local state
+.env
+.env.*
+service.json
+*.pem
+*.key
+# OpenCode runtime state (token lives in _auth_token, never commit)
+.auth_token
+
+# audio / recordings (RAM tmpdir by default, but be explicit)
+*.wav
+*.webm
+*.mp3
+*.ogg
+
+# local typecheck scratch
+*.tsbuildinfo
