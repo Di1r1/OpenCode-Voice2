@@ -119,6 +119,29 @@
   }
 
   // Chrome обрывает длинные utterances (~15 c) — режем на куски по предложениям.
+  // Управление озвучкой: строка, начинающаяся с 🔈, произносится, остальное —
+  // нет. Так решает ассистент, а не расширение, и текст можно писать
+  // естественно: короткими фразами, без разметки.
+  var SPEAK_MARK = "\uD83D\uDD08";
+  function markedSpoken(text) {
+    var lines = String(text || "").split(/\r?\n/);
+    var picked = [];
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].indexOf(SPEAK_MARK) === -1) continue;
+      var one = lines[i].replace(SPEAK_MARK, "").replace(/^\s*[*_#>-]+\s*/, "").trim();
+      if (one) picked.push(one);
+    }
+    return picked.join(" ");
+  }
+
+  // Единое решение: пометка важнее режима.
+  function pickSpoken(text, mode, briefN) {
+    var marked = markedSpoken(text);
+    if (marked) return marked;
+    if (mode === "manual") return "";
+    return mode === "brief" ? briefSentences(text, briefN, { includeErrors: true }) : text;
+  }
+
   function chunkSentences(text, maxLen) {
     maxLen = maxLen || 180;
     var sentences = splitSentences(text);
@@ -362,9 +385,7 @@
       var key = dedupKey(id, text);
       if (spoken[key]) return;
       spoken[key] = true;
-      var speakText = settings.ttsMode === "brief"
-        ? briefSentences(text, settings.ttsBriefSentences, { includeErrors: true })
-        : text;
+      var speakText = pickSpoken(text, settings.ttsMode, settings.ttsBriefSentences);
       if (speakText) enqueue(speakText);
     }
 
@@ -450,9 +471,7 @@
         spoken[key] = true;
         stats.finalized++;
         dbg("finalize (poll)", nm.id, "len", raw.length);
-        var out = settings.ttsMode === "brief"
-          ? briefSentences(text, settings.ttsBriefSentences, { includeErrors: true })
-          : text;
+        var out = pickSpoken(text, settings.ttsMode, settings.ttsBriefSentences);
         if (out) enqueue(out);
         return;
       }
@@ -761,7 +780,9 @@
             playBuffer(buf, function () {
               if (!speaking) return;
               idx++;
-              next();
+              // Короткая пауза между фразами: слитная речь звучит как
+              // робот, пауза даёт естественный темп.
+              setTimeout(next, 220);
             }, function (why) { fallbackRest("play: " + why, cur); });
           }).catch(function (e) { fallbackRest("fetch: " + (e && e.message), cur); });
         } catch (e) { fallbackRest("throw: " + e, cur); }
@@ -887,6 +908,8 @@
     pickVoice: pickVoice,
     briefSentences: briefSentences,
     chunkSentences: chunkSentences,
+    markedSpoken: markedSpoken,
+    pickSpoken: pickSpoken,
     utteranceBudget: utteranceBudget,
     dedupKey: dedupKey,
     comboMatches: comboMatches,

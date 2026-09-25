@@ -27,7 +27,7 @@ vm.runInContext(readFileSync(here("../extension/tts.js"), "utf8"), sandbox)
 const TTS = sandbox.OpenCodeVoiceTTS
 
 test("tts.js exposes helpers", () => {
-  for (const name of ["cleanForSpeech", "detectLang", "pickVoice", "briefSentences", "chunkSentences", "utteranceBudget", "dedupKey", "comboMatches", "start"]) {
+  for (const name of ["cleanForSpeech", "detectLang", "pickVoice", "briefSentences", "chunkSentences", "utteranceBudget", "dedupKey", "comboMatches", "markedSpoken", "pickSpoken", "start"]) {
     assert.equal(typeof TTS[name], "function", `missing ${name}`)
   }
   assert.equal(TTS.DEFAULTS.ttsEngine, "browser", "engine defaults to the browser (opt-in server)")
@@ -111,3 +111,35 @@ test("shared tts spec section is present and complete", () => {
   assert.ok(spec.tts.mode === "brief" || spec.tts.mode === "full")
   assert.ok(typeof spec.tts.lang === "string" && spec.tts.lang.length > 0)
 })
+
+// --- Управление озвучкой меткой 🔈 -------------------------------------
+// Ассистент сам решает, что произносить: помеченная строка говорится,
+// остальное — нет. Это снимает автоматику «прочитай первые два
+// предложения» и даёт контроль над тем, как звучит голос.
+
+test("markedSpoken берёт только помеченные строки", () => {
+  assert.equal(TTS.markedSpoken("\uD83D\uDD08 Первая фраза.\nОбычный текст."), "Первая фраза.");
+  assert.equal(TTS.markedSpoken("Обычный текст без метки."), "");
+  assert.equal(TTS.markedSpoken("\uD83D\uDD08 Одна.\n\uD83D\uDD08 Две."), "Одна. Две.");
+});
+
+test("markedSpoken снимает markdown вокруг метки", () => {
+  assert.equal(TTS.markedSpoken("**\uD83D\uDD08** С жирной меткой"), "С жирной меткой");
+  assert.equal(TTS.markedSpoken("- \uD83D\uDD08 В списке"), "В списке");
+});
+
+test("manual: без метки — тишина", () => {
+  assert.equal(TTS.pickSpoken("Обычный ответ.", "manual", 2), "");
+  assert.equal(TTS.pickSpoken("\uD83D\uDD08 Скажи это.", "manual", 2), "Скажи это.");
+});
+
+test("метка важнее любого режима", () => {
+  // Даже в full, где читалось бы всё, произносится только помеченное.
+  assert.equal(TTS.pickSpoken("\uD83D\uDD08 Только это.\nмного текста тут", "full", 2), "Только это.");
+  assert.equal(TTS.pickSpoken("\uD83D\uDD08 Только это.\nмного текста тут", "brief", 2), "Только это.");
+});
+
+test("без метки поведение прежнее: brief читает начало, full — всё", () => {
+  assert.equal(TTS.pickSpoken("Раз. Два. Три. Четыре.", "brief", 2), "Раз. Два.");
+  assert.equal(TTS.pickSpoken("Раз. Два. Три. Четыре.", "full", 2), "Раз. Два. Три. Четыре.");
+});
