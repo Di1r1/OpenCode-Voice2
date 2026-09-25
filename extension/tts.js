@@ -248,13 +248,27 @@
       var sel = '[data-component="prompt-input"], [data-component="prompt-input-v2"], [role="textbox"][contenteditable="true"]';
       var hasMarker = !!(doc && doc.querySelector(sel));
       if (!hasMarker) dbg("gate: разметка prompt-input не найдена, решает /session");
+      // Критично: /session отдаёт HTML-заглушку SPA с кодом 200. Раньше это
+      // считалось успехом, и настоящая ошибка 401 от /api/session пряталась —
+      // гейт зелёный, а сообщения не читаются (fin:0). Успех = 2xx И JSON.
       var probe = function (path) {
-        return win.fetch(path, { method: "GET", headers: { Accept: "application/json" } })
-          .then(function (r) { dbg("gate:", path, r && r.status); return { path: path, ok: !!(r && r.ok) }; })
+        return win.fetch(path, { method: "GET", headers: { Accept: "application/json" }, credentials: "same-origin" })
+          .then(function (r) {
+            var ct = (r.headers && r.headers.get("content-type")) || "";
+            var json = ct.indexOf("json") !== -1;
+            dbg("gate:", path, r && r.status, ct.split(";")[0]);
+            return { path: path, ok: !!(r && r.ok && json), status: r && r.status, auth: r && r.status === 401 };
+          })
           .catch(function (e) { dbg("gate: " + path + " failed", e && e.message); return { path: path, ok: false }; });
       };
       probe("/api/session").then(function (a) {
         if (a.ok) { cb(true); return; }
+        if (a.auth) {
+          // Явная диагностика вместо тишины.
+          dbg("gate: API требует авторизацию (401) — авто-озвучка не сможет читать ответы");
+          cb("unauthorized");
+          return;
+        }
         return probe("/session").then(function (b) { cb(a.ok || b.ok); });
       }).catch(function (e) { dbg("gate: probe threw", e && e.message); cb(false); });
     }
@@ -354,8 +368,13 @@
     function pollOnce() {
       try {
         var pick = function (path) {
-          return win.fetch(path, { headers: { Accept: "application/json" } })
-            .then(function (r) { return r.json(); })
+          return win.fetch(path, { headers: { Accept: "application/json" }, credentials: "same-origin" })
+            .then(function (r) {
+              var ct = (r.headers && r.headers.get("content-type")) || "";
+              if (r.status === 401) { dbg("poll: 401 — нужен пароль OpenCode-сервера"); return []; }
+              if (ct.indexOf("json") === -1) { dbg("poll: " + path + " отдал " + (ct.split(";")[0] || "?") + ", не JSON"); return []; }
+              return r.json();
+            })
             .then(function (body) { return (body && body.data) || body || []; });
         };
         pick("/api/session").then(function (a) { return a && a.length ? a : pick("/session").then(function (b) { return b && b.length ? b : a; }); })
@@ -719,7 +738,15 @@
     function tick() {
       if (!gateOk) {
         isOpenCodePage(function (ok) {
-          if (!ok) return;
+          // Строгое сравнение: гейт умеет вернуть "unauthorized", а строка
+          // истинна — обычная проверка if (!ok) её пропустила бы.
+          if (ok !== true) {
+            if (ok === "unauthorized") {
+              stats.lastSkip = "api-401";
+              dbg("gate: авто-озвучка выключена — сервер требует пароль");
+            }
+            return;
+          }
           gateOk = true;
           dbg("gate ok");
           toast("🔊 Озвучка включена", "info", 2000);
