@@ -413,25 +413,43 @@
       } catch (e) { dbg("poll threw", e); }
     }
 
+    // Форма сообщения менялась между версиями:
+    //   V1: { info: { id, role, time }, parts: [{ type:"text", text }] }
+    //   V2: { id, type:"assistant", time, content: [{ type:"text", text }] }
+    // Раньше читались только V1-поля, поэтому в V2 цикл всегда уходил в
+    // continue и ни одно сообщение не озвучивалось (fin:0). Нормализуем оба вида.
+    function normMessage(row) {
+      if (!row || typeof row !== "object") return null;
+      var info = row.info || row;
+      var parts = row.parts || row.content || [];
+      return {
+        id: info.id || row.id || "",
+        role: info.role || info.type || "",
+        parentID: info.parentID || "",
+        completed: !!(info.time && info.time.completed),
+        text: parts.filter(function (p) { return p && p.type === "text" && (p.text || "").trim(); })
+          .map(function (p) { return p.text; }).join(" ")
+      };
+    }
+
     function onSnapshot(msgs) {
       for (var i = msgs.length - 1; i >= 0; i--) {
-        var info = (msgs[i] && msgs[i].info) || {};
-        if (info.role !== "assistant") continue;
-        if (!(info.time && info.time.completed)) return; // последний ответ ещё стримится
-        var parts = msgs[i].parts || [];
-        var raw = parts.filter(function (p) { return p.type === "text" && (p.text || "").trim(); })
-          .map(function (p) { return p.text; }).join(" ");
+        var nm = normMessage(msgs[i]);
+        if (!nm) continue;
+        if (nm.role !== "assistant") continue;
+        if (!nm.completed) return; // последний ответ ещё стримится
+        var raw = nm.text;
         if (!raw.trim()) return;
-        if (!visibleMessageEl(info.id) && !(info.parentID && visibleMessageEl(info.parentID))) {
-          dbg("poll: row not found, speaking anyway", info.id, info.parentID);
+        if (!visibleMessageEl(nm.id) && !(nm.parentID && visibleMessageEl(nm.parentID))) {
+          dbg("poll: row not found, speaking anyway", nm.id, nm.parentID);
         }
         var text = cleanForSpeech(raw);
         if (!text) return;
-        var key = dedupKey(info.id, text);
+        var key = dedupKey(nm.id, text);
         if (spoken[key]) return;
         spoken[key] = true;
         stats.finalized++;
-        dbg("finalize (poll)", info.id, "len", raw.length);
+        dbg("finalize (poll)", nm.id, "len", raw.length);
         var out = settings.ttsMode === "brief"
           ? briefSentences(text, settings.ttsBriefSentences, { includeErrors: true })
           : text;
