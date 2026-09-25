@@ -561,6 +561,8 @@ poll: нет в DOM, читаем из API ... msg_0da612236001ejP8HPX6k4jwLA   
 
 | Проверка | Результат |
 |---|---|
+| Польский голос | `pl_PL-gosia-medium` 61 МБ, синтез 5,26 сек валидного WAV 22 кГц |
+| Польские голоса в popup | `GET /voices` отдаёт 3 голоса: ru_RU-irina, pl_PL-gosia, pl_PL-darkman |
 | Push-to-talk в TUI | TUI в tmux, лидер = **`ctrl+x`**, тост, запись стартует за 1 с |
 | Микрофон → STT | живая запись, `POST /transcribe` → 200 |
 | Авто-озвучка | `fin:1`, `speak server {chars:157, chunks:1}`, `voice:null` |

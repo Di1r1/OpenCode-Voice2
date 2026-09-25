@@ -353,44 +353,33 @@ if [ "$DO_TTS" = "1" ]; then
     fi
   fi
 
-  # Русские голоса Piper (medium, ~60 МБ каждый): качаем весь набор, чтобы было
-  # из чего выбирать в popup (каталог GET /voices). Переопределить:
-  # OPENCODE_VOICE_TTS_VOICES="irina dmitri" (имена без префикса/суффикса).
-  TTS_VOICE_NAMES="${OPENCODE_VOICE_TTS_VOICES:-irina dmitri denis ruslan}"
-  TTS_VOICE_URL_REPO="https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU"
-  for _name in $TTS_VOICE_NAMES; do
-    _vname="ru_RU-${_name}-medium"
-    _vbase="$TTS_VOICE_URL_REPO/$_name/medium/$_vname"
-    for ext in onnx onnx.json; do
-      VOICE_FILE="$TTS_VOICES_DIR/$_vname.$ext"
-      if [ -s "$VOICE_FILE" ]; then ok "голос уже есть: $VOICE_FILE"; continue; fi
-      info "скачиваю $_vname.$ext"
-      if curl -fL --retry 3 -o "$VOICE_FILE.part" "$_vbase.$ext"; then
-        mv -f "$VOICE_FILE.part" "$VOICE_FILE"; ok "$VOICE_FILE"
-      else
-        rm -f "$VOICE_FILE.part"; warn "не удалось скачать $_vname.$ext"
-      fi
+  # Голоса Piper (medium, ~63 МБ каждый). Русский, английский и польский: без
+  # голоса нужного языка синтез читает чужой текст с чужой фонетикой, и это
+  # слышно. Все попадают в каталог GET /voices, то есть в выпадающий список
+  # popup без перезапуска сервера.
+  # Переопределить: OPENCODE_VOICE_TTS_VOICES="irina dmitri" (имена без префикса
+  # и суффикса), _EN, _PL соответственно.
+  tts_install_voices() {
+    local lang_code="$1" lang_dir="$2" names="$3" name vname vbase ext f
+    for name in $names; do
+      vname="${lang_code}-${name}-medium"
+      vbase="https://huggingface.co/rhasspy/piper-voices/resolve/main/${lang_dir}/${lang_code}/${name}/medium/${vname}"
+      for ext in onnx onnx.json; do
+        f="$TTS_VOICES_DIR/$vname.$ext"
+        if [ -s "$f" ]; then ok "голос уже есть: $vname.$ext"; continue; fi
+        info "скачиваю $vname.$ext"
+        if curl -fL --retry 3 -o "$f.part" "$vbase.$ext"; then
+          mv -f "$f.part" "$f"; ok "$vname.$ext"
+        else
+          rm -f "$f.part"; warn "не удалось скачать $vname.$ext"
+        fi
+      done
     done
-  done
+  }
 
-  # Английские голоса Piper (medium): один по умолчанию, чтобы англоязычным было
-  # из чего выбирать в popup. Добавить ещё: OPENCODE_VOICE_TTS_VOICES_EN="lessac ryan".
-  TTS_VOICE_NAMES_EN="${OPENCODE_VOICE_TTS_VOICES_EN:-lessac}"
-  TTS_VOICE_URL_REPO_EN="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US"
-  for _name in $TTS_VOICE_NAMES_EN; do
-    _vname="en_US-${_name}-medium"
-    _vbase="$TTS_VOICE_URL_REPO_EN/$_name/medium/$_vname"
-    for ext in onnx onnx.json; do
-      VOICE_FILE="$TTS_VOICES_DIR/$_vname.$ext"
-      if [ -s "$VOICE_FILE" ]; then ok "голос уже есть: $VOICE_FILE"; continue; fi
-      info "скачиваю $_vname.$ext"
-      if curl -fL --retry 3 -o "$VOICE_FILE.part" "$_vbase.$ext"; then
-        mv -f "$VOICE_FILE.part" "$VOICE_FILE"; ok "$VOICE_FILE"
-      else
-        rm -f "$VOICE_FILE.part"; warn "не удалось скачать $_vname.$ext"
-      fi
-    done
-  done
+  tts_install_voices ru_RU ru/ru_RU "${OPENCODE_VOICE_TTS_VOICES:-irina dmitri denis ruslan}"
+  tts_install_voices en_US en/en_US "${OPENCODE_VOICE_TTS_VOICES_EN:-lessac}"
+  tts_install_voices pl_PL pl/pl_PL "${OPENCODE_VOICE_TTS_VOICES_PL:-gosia darkman}"
 
   echo
   info "серверный TTS выключен по умолчанию — включите переменными ТАМ, откуда стартует OpenCode:"
