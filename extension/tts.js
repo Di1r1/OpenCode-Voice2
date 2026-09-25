@@ -238,14 +238,25 @@
       } catch (e) { dbg("settings read failed", e); cb(); }
     }
 
+    // Признак "это страница OpenCode" — живой ответ /session, а НЕ разметка.
+    // Раньше гейт сначала требовал конкретные CSS-атрибуты ([data-component=
+    // "prompt-input"] и т.п.). После обновления веб-интерфейса они могли
+    // исчезнуть, и гейт оставался закрытым НАВСЕГДА: авто-озвучка молчала,
+    // хотя кнопка "Тест" в popup работала — она зовёт speak() напрямую и
+    // гейт не проходит. Теперь разметка лишь пишет предупреждение в отладку.
     function isOpenCodePage(cb) {
       var sel = '[data-component="prompt-input"], [data-component="prompt-input-v2"], [role="textbox"][contenteditable="true"]';
-      if (!doc || !doc.querySelector(sel)) { cb(false); return; }
-      try {
-        win.fetch("/session", { method: "GET", headers: { Accept: "application/json" } })
-          .then(function (r) { dbg("gate: /session", r && r.status); cb(!!r && r.ok); })
-          .catch(function (e) { dbg("gate: /session failed", e && e.message); cb(false); });
-      } catch (e) { dbg("gate: fetch threw", e); cb(false); }
+      var hasMarker = !!(doc && doc.querySelector(sel));
+      if (!hasMarker) dbg("gate: разметка prompt-input не найдена, решает /session");
+      var probe = function (path) {
+        return win.fetch(path, { method: "GET", headers: { Accept: "application/json" } })
+          .then(function (r) { dbg("gate:", path, r && r.status); return { path: path, ok: !!(r && r.ok) }; })
+          .catch(function (e) { dbg("gate: " + path + " failed", e && e.message); return { path: path, ok: false }; });
+      };
+      probe("/api/session").then(function (a) {
+        if (a.ok) { cb(true); return; }
+        return probe("/session").then(function (b) { cb(a.ok || b.ok); });
+      }).catch(function (e) { dbg("gate: probe threw", e && e.message); cb(false); });
     }
 
     function visibleMessageEl(id) {
@@ -342,10 +353,14 @@
     // самой свежей top-level сессии. Так озвучка работает, даже если поток не доходит.
     function pollOnce() {
       try {
-        win.fetch("/api/session", { headers: { Accept: "application/json" } })
-          .then(function (r) { return r.json(); })
-          .then(function (body) {
-            var list = (body && body.data) || [];
+        var pick = function (path) {
+          return win.fetch(path, { headers: { Accept: "application/json" } })
+            .then(function (r) { return r.json(); })
+            .then(function (body) { return (body && body.data) || body || []; });
+        };
+        pick("/api/session").then(function (a) { return a && a.length ? a : pick("/session").then(function (b) { return b && b.length ? b : a; }); })
+          .then(function (list) {
+            list = list || [];
             var best = null;
             for (var i = 0; i < list.length; i++) {
               var s = list[i];
