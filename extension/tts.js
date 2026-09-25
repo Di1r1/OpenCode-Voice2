@@ -622,12 +622,17 @@
         var rest = chunks.slice(fromIdx).join(" ") || text;
         speakBrowser(rest);
       };
-      var fetchChunk = function (chunkText) {
+      var fetchChunk = function (chunkText, retryNoVoice) {
         var payload = { text: chunkText, mode: "full", rate: Number(settings.ttsRate) || 1.0 };
-        // Серверный голос — отдельный ключ (ttsServerVoice); пусто → серверный дефолт.
-        // Старый общий ttsVoice оставлен как фолбэк ради совместимости.
-        var serverVoice = settings.ttsServerVoice || settings.ttsVoice;
-        if (serverVoice) payload.voice = serverVoice;
+        // ТОЛЬКО ttsServerVoice. Раньше здесь стоял фолбэк `|| settings.ttsVoice`
+        // «ради совместимости», и он ломал озвучку: ttsVoice хранит имя голоса
+        // Web Speech (например «Microsoft Irina Online (Natural)»), которого в
+        // каталоге Piper нет. Сервер отвечал 400 "unknown voice (not in catalog)",
+        // расширение откатывалось на браузерный синтез — и при заблокированном
+        // автовоспроизведении пользователь слышал тишину. Теперь пусто = серверный
+        // дефолт, как и обещает комментарий.
+        var serverVoice = settings.ttsServerVoice;
+        if (serverVoice && !retryNoVoice) payload.voice = serverVoice;
         if (settings.ttsLang !== "auto") payload.lang = settings.ttsLang;
         return win.fetch(serverUrl + "/speak", {
           method: "POST",
@@ -642,7 +647,24 @@
         }).then(function (r) {
           if (!r.ok) {
             return r.json().catch(function () { return {}; }).then(function (b) {
-              throw new Error("http " + r.status + (b && b.error ? " " + b.error : ""));
+              var msg = (b && b.error) || "";
+              // Самовосстановление: сервер не знает голос — почти всегда это
+              // устаревшее значение из popup (например, голос удалили или сменили
+              // набор). Чистим настройку и повторяем БЕЗ voice, чтобы сервер взял
+              // свой дефолт. Один ретрай, без зацикливания.
+              if (r.status === 400 && !retryNoVoice && /voice/i.test(msg)) {
+                dbg("server does not know voice, retry without voice", msg);
+                if (settings.ttsServerVoice) {
+                  settings.ttsServerVoice = "";
+                  try {
+                    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+                      chrome.storage.local.set({ ttsServerVoice: "" });
+                    }
+                  } catch (e) {}
+                }
+                return fetchChunk(chunkText, true);
+              }
+              throw new Error("http " + r.status + (msg ? " " + msg : ""));
             });
           }
           return r.arrayBuffer();
