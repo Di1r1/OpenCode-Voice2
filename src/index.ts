@@ -115,7 +115,6 @@ export default {
           .trim()
         const parts = raw.split(/\s+/).filter(Boolean)
         const sub = parts[0]?.toLowerCase()
-        await log("voice invoked", { sub: sub ?? "", sessionID: invocation.sessionID })
 
         // /voice backend [local|api]
         if (sub === "backend") {
@@ -200,7 +199,6 @@ export default {
               ? await $`bash ${script} --fix`.text()
               : await $`bash ${script}`.text()
             const tailLines = out.trim().split("\n").slice(-14).join("\n")
-            await log("doctor", { fix })
             await answer(
               invocation,
               svc(`диагностика (${fix ? "с ремонтом" : "только чтение"}):\n${tailLines}`),
@@ -297,9 +295,8 @@ export default {
           const recordOnce = async () => {
             await beep($, 880, 120)
             const s = await rec.startPushToTalk($)
-            const info = await rec.waitPushToTalkAuto(s)
+            await rec.waitPushToTalkAuto(s)
             await beep($, 520, 140)
-            await log("ptt recorded", { reason: info.reason, audioMs: Math.round(info.audioMs) })
             return s
           }
 
@@ -345,10 +342,7 @@ export default {
                 await log("ptt attempt failed", { error: lastError.message })
                 const { heal } = await import("./lib/heal")
                 const res = await heal($, { directory, reason: lastError.message, log })
-                if (res.healed) {
-                  await log("healed, retrying ptt")
-                  continue
-                }
+                if (res.healed) continue
               }
             }
           }
@@ -358,7 +352,6 @@ export default {
           }
           await beep($, 660, 120)
           await answer(invocation, text)
-          await log("ptt done", { chars: text.length })
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e)
           await log("ptt aborted", { error: msg })
@@ -380,7 +373,6 @@ export default {
         execute: executeVoice,
       })
     })
-    log(`Plugin loaded (v${PLUGIN_VERSION})`)
 
     // Cleanup останавливает вотчдог STT-сервера при выгрузке плагина.
     return () => {

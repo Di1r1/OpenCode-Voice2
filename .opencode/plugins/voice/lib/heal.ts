@@ -93,7 +93,6 @@ export async function heal($: any, opts: HealOptions): Promise<HealResult> {
       lastHealAt = now
       // doctor мог остановить сервер — поднимаем сразу, не дожидаясь watchdog.
       try { await ensureSttServer(opts.directory, opts.log) } catch {}
-      await opts.log?.("heal: doctor --fix done", { script, reason: opts.reason })
       return { healed: true, script }
     } catch (e: any) {
       lastHealAt = now
@@ -110,6 +109,5 @@ export async function heal($: any, opts: HealOptions): Promise<HealResult> {
     await rec.recoverMic($)
   } catch {}
   lastHealAt = now
-  await opts.log?.("heal: fallback applied", { reason: opts.reason })
   return { healed: true, script: null }
 }

@@ -116,14 +116,10 @@ export async function ensureSttServer(directory: string, log?: LogFn): Promise<b
         // fd уже продублирован ребёнком
       }
     }
-    await log?.("stt server starting", { script, port: serverPort(), pid: child.pid, log: logPath })
     const deadline = Date.now() + 60_000
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 1500))
-      if (await isServerUp()) {
-        await log?.("stt server ready", { port: serverPort() })
-        return true
-      }
+      if (await isServerUp()) return true
     }
     await log?.("stt server did not become ready")
     return false
