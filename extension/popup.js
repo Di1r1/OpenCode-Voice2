@@ -383,7 +383,10 @@ if (copyLogBtn) copyLogBtn.addEventListener('click', async () => {
   try {
     const s = await fetchEvents();
     if (!s) { alert(t('logNoTab')); return; }
-    const header = `# OpenCode Voice ${(s.ver || '?')} level=${s.mode || '?'} gate=${s.gateOk} ` +
+    // manifest=default — значит файл не приехал и работают встроенные значения.
+    // Именно это молча выглядело как «озвучка просто не фильтрует».
+    const header = `# OpenCode Voice ${(s.ver || '?')} mode=${s.mode || '?'} level=${s.level || '?'} ` +
+      `manifest=${s.manifest || '?'} gate=${s.gateOk} ` +
       `fin=${s.finalized} said=${s.spoken} rows=${s.rows} voices=${s.voices}`;
     const body = (s.eventsLog || []).join('\n');
     if (!body) { alert(t('logEmpty')); return; }
