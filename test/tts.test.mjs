@@ -394,3 +394,42 @@ test("журнал не течёт: кольцевой буфер огранич
   assert.ok(/var LOG_MAX = \d+/.test(tts), "нет предела размера журнала")
   assert.ok(tts.includes("logEvents.shift()"), "буфер журнала не усекается — вырастет без предела")
 })
+
+test("журнал схлопывает повторы, чтобы не забивать буфер", () => {
+  // Именно это портило дамп статуса: опрос раз в секунду писал «нет в DOM»
+  // пять раз подряд и вытеснял из logTail записи mark/speak.
+  const tail = [], st = { last: null, n: 0 }
+  TTS.logPush(tail, st, "poll: нет в DOM", 20)
+  TTS.logPush(tail, st, "poll: нет в DOM", 20)
+  TTS.logPush(tail, st, "poll: нет в DOM", 20)
+  assert.equal(tail.length, 1, `повтор должен схлопнуться в одну строку, а не ${tail.length}`)
+  assert.match(tail[0], /×3$/, `в повторе должен быть счётчик, получено: ${tail[0]}`)
+  // Другая строка — снова отдельная запись.
+  TTS.logPush(tail, st, "speak chars=70", 20)
+  assert.equal(tail.length, 2)
+  // Серия повторов после другой строки начинается заново, и первое вхождение
+  // пишется без счётчика: «×1» в журнале только шумит.
+  TTS.logPush(tail, st, "poll: нет в DOM", 20)
+  assert.equal(tail[tail.length - 1], "poll: нет в DOM", "счётчик не должен тянуться через другую строку")
+  TTS.logPush(tail, st, "poll: нет в DOM", 20)
+  assert.equal(tail[tail.length - 1], "poll: нет в DOM ×2", "новая серия должна снова считать")
+})
+
+test("буфер журнала ограничен", () => {
+  const tail = [], st = { last: null, n: 0 }
+  for (let i = 0; i < 50; i++) TTS.logPush(tail, st, `строка ${i}`, 20)
+  assert.equal(tail.length, 20, `буфер должен быть ограничен 20, а не ${tail.length}`)
+  assert.equal(tail[tail.length - 1], "строка 49", "в буфере должны остаться самые свежие")
+})
+
+test("журнал не повторяет одно и то же сообщение об опросе", () => {
+  // Статическая проверка: лог «нет в DOM» обязан стоять после проверки
+  // spoken[key], иначе он пишется на каждом опросе, раз в секунду.
+  const src = readFileSync(here("../extension/tts.js"), "utf8")
+  const miss = src.indexOf('dbg("poll: нет в DOM')
+  assert.ok(miss > 0, "нет лога про отсутствие сообщения в DOM")
+  assert.ok(src.slice(Math.max(0, miss - 600), miss).includes("domMissLogged"),
+    "лог про «нет в DOM» должен стоять ЗА проверкой domMissLogged, иначе он пишется на каждом опросе")
+  assert.ok(src.includes("domMissLogged = {}") && src.includes("domMissN++ > 200"),
+    "карта защиты должна переполняться, иначе вырастет без предела")
+})

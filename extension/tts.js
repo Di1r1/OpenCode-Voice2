@@ -10,7 +10,7 @@
 
 // Версия расширения — ЕДИНСТВЕННОЕ место, где она живёт. Раньше она была
 (function () {
-  var TTS_VERSION = "1.0.51";
+  var TTS_VERSION = "1.0.52";
   "use strict";
 
   // ------------------------------------------------------------------ helpers
@@ -252,6 +252,23 @@
     return picked.join(" ");
   }
 
+  // Журнал: одинаковые строки подряд схлопываются в «строка ×N».
+  // Вынесено наружу start(), чтобы покрыть тестом. Именно повторы забивали
+  // 20-строчный logTail: в дампе статуса пять одинаковых строк про опрос
+  // вытесняли mark и speak, ради которых журнал и нужен.
+  function logPush(tail, state, line, max) {
+    if (state.last === line && tail.length) {
+      state.n++;
+      tail[tail.length - 1] = line + " \u00d7" + state.n;
+    } else {
+      tail.push(line);
+      state.last = line;
+      state.n = 1;
+    }
+    while (tail.length > (max || 20)) tail.shift();
+    return tail;
+  }
+
   // Журнал живёт внутри start(), но pickSpoken() — снаружи. Поэтому здесь
   // крючок, который start() подменяет на реальный журнализатор. Без него
   // решение «почему прозвучало / почему нет» вообще нигде не остаётся.
@@ -414,11 +431,12 @@
     // pickSpoken() живёт снаружи start() и зовёт этот крючок.
     REPORTER = logEvent;
 
+    var domMissLogged = {}, domMissN = 0;
+    var logState = { last: null, n: 0 };
     var dbg = function () {
       var args = [].slice.call(arguments);
       var line = args.map(function (a) { return typeof a === "string" ? a : JSON.stringify(a); }).join(" ");
-      logTail.push(line);
-      if (logTail.length > 20) logTail.shift();
+      logPush(logTail, logState, line, 20);
       if (settings.ttsDebug) {
         try { console.log.apply(console, ["[OCV TTS]"].concat(args)); } catch (e) {}
       }
@@ -648,7 +666,15 @@
         var raw = nm.text;
         if (!raw.trim()) return;
         if (!visibleMessageEl(nm.id) && !(nm.parentID && visibleMessageEl(nm.parentID))) {
-          dbg("poll: нет в DOM, читаем из API (озвучка не зависит от вёрстки)", nm.id, nm.parentID);
+          // Логируем ОДИН раз на сообщение. Раньше строка писалась до проверки
+          // spoken[key], то есть на каждом опросе (раз в секунду) и забивала
+          // logTail: в дампе статуса вместо mark/speak было пять одинаковых строк.
+          var mk = nm.id || nm.parentID || "?";
+          if (!domMissLogged[mk]) {
+            domMissLogged[mk] = 1;
+            if (domMissN++ > 200) { domMissLogged = {}; domMissN = 0; }
+            dbg("poll: нет в DOM, читаем из API (озвучка не зависит от вёрстки)", nm.id, nm.parentID);
+          }
         }
         var text = cleanForSpeech(raw);
         if (!text) return;
@@ -1171,6 +1197,7 @@
     comboMatches: comboMatches,
     DEFAULTS: DEFAULTS,
     TTS_VERSION: TTS_VERSION,
+    logPush: logPush,
     start: start
   };
 })();
