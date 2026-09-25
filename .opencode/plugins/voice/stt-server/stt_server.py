@@ -52,6 +52,8 @@ _FALLBACK_MANIFEST = {
     },
     "alwaysVoicePrefixes": [],
     "neverVoicePatterns": ["```", "http://", "https://", "/mnt/"],
+    # Метка не заглушивает эти строки: ошибка должна прозвучаться вместе с помеченной строки.
+    "neverSuppressPrefixes": ["Ошибка", "Сбой", "Не работает", "Важно", "Внимание", "Проверка"],
     "voice": {"engine": "server", "serverVoice": "", "rate": 1.0},
     "limits": {"maxCharsPerChunk": 180, "maxTotalSeconds": 60},
 }

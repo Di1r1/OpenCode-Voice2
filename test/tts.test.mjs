@@ -380,10 +380,13 @@ test("каждое решение пишется в журнал (REPORTER)", ()
   // Пользователь просил лог «ставится метка / уходит голосом». Значит каждая
   // ветка выбора обязана оставить запись, иначе молчание нечем объяснить.
   const tts = readFileSync(here("../extension/tts.js"), "utf8")
-  for (const kind of ["mark", "always", "level", "skip"]) {
-    assert.ok(tts.includes(`REPORTER("${kind}"`),
-      `ветка ${kind} не пишет в журнал — молчание будет нечем объяснить`)
+  // Проверяем сами виды записей, а не форму вызова: выбор ветки сделан
+  // тернарником ("mark" / "mark+critical"), и привязка к литералу REPORTER("…
+  // ломалась бы при любой правке.
+  for (const kind of ['"mark"', '"mark+critical"', '"always"', '"level"', '"skip"']) {
+    assert.ok(tts.includes(kind), `в журнале нет записи ${kind} — молчание будет нечем объяснить`)
   }
+  assert.ok(tts.includes("REPORTER("), "в pickSpoken должен быть вызов журнала")
   assert.ok(tts.includes('logEvent("speak"'), "в синтез должен уходить явный лог")
   assert.ok(tts.includes("REPORTER = logEvent"), "start() обязан подменить крючок журнала")
   assert.ok(tts.includes("eventsLog:"), "журнал должен отдаваться в popup")
@@ -432,4 +435,113 @@ test("журнал не повторяет одно и то же сообщен�
     "лог про «нет в DOM» должен стоять ЗА проверкой domMissLogged, иначе он пишется на каждом опросе")
   assert.ok(src.includes("domMissLogged = {}") && src.includes("domMissN++ > 200"),
     "карта защиты должна переполняться, иначе вырастет без предела")
+})
+
+// ---------------------------------------------------------------------------
+// Метка не имеет права заглушить ошибку (1.0.53)
+// ---------------------------------------------------------------------------
+
+test("метка НЕ заглушает «Ошибка» — они произносятся вместе", () => {
+  // Найдено по вопросу пользователя: «если есть помеченная строка, должна
+  // произноситься только она». Так и было — и метка на итоге глушила «Ошибка»
+  // в том же сообщении, то есть страховка работала ровно наоборот.
+  const msg = `🔈 Вот краткий итог: сделано и проверено.
+Ошибка: микрофон не определился, запись не стартует.
+Обычная строка без метки.`
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  const out = TTS.pickSpoken(msg, "normal")
+  assert.ok(out.includes("Вот краткий итог"), "помеченное должно звучать")
+  assert.ok(out.includes("микрофон не определился"), "ошибка не должна заглушаться меткой")
+  assert.ok(!out.includes("Обычная строка"), "обычный текст без метки молчит")
+  // markedSpoken по-прежнему показывает ТОЛЬКО метку — это разные вопросы.
+  assert.equal(TTS.markedSpoken(msg), "Вот краткий итог: сделано и проверено.")
+  assert.ok(TTS.criticalSpoken(msg).includes("микрофон"), "criticalSpoken должен ловить ошибку")
+})
+
+test("«Готово» меткой не защищается — это не ошибка", () => {
+  // Разделение по назначению: ошибку нельзя заглушить, итог — можно.
+  // Иначе «Готово» из каждого второго ответа只会 шуметь поверх метки.
+  const msg = `🔈 Итог работы.
+Готово: тесты зелёные.`
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  const out = TTS.pickSpoken(msg, "normal")
+  assert.equal(out, "Итог работы.", "«Готово» не входит в neverSuppressPrefixes")
+  // Без метки «Готово» звучит само — страховка на случай забытой метки.
+  assert.ok(TTS.pickSpoken("Готово: тесты зелёные.", "normal").includes("зелёные"))
+})
+
+test("строка «Ошибка» не дублируется, если помечена и как важная", () => {
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  const out = TTS.pickSpoken("🔈 Ошибка: сервер не отвечает.", "normal")
+  const times = out.split("Ошибка:").length - 1
+  assert.equal(times, 1, `«Ошибка» произнесена ${times} раз, а должна один`)
+  assert.equal(out, "Ошибка: сервер не отвечает.")
+})
+
+test("негасимые фразы работают на любом уровне, включая manual", () => {
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  for (const level of ["quiet", "normal", "more", "verbose", "full", "manual"]) {
+    const out = TTS.pickSpoken("Ошибка: сломалось.", level)
+    assert.ok(out.includes("сломалось"), `на уровне ${level} ошибка обязана звучать`)
+  }
+})
+
+test("негасимые фразы не обходят запреты манифеста", () => {
+  // Запрет на код/пути/ссылки действует и для «Ошибка»: иначе вслух прочитало бы
+  // путь к файлу или адрес.
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  assert.equal(TTS.pickSpoken("Ошибка: не найден файл /mnt/c/x.py", "normal"), "")
+  assert.equal(TTS.pickSpoken("Ошибка: сервер https://example.com не отвечает", "normal"), "")
+})
+
+test("в манифесте есть neverSuppressPrefixes с ошибками", () => {
+  const m = readJson("../shared/tts-manifest.json")
+  assert.ok(Array.isArray(m.neverSuppressPrefixes), "нет списка neverSuppressPrefixes")
+  for (const p of ["Ошибка", "Важно", "Проверка", "Не работает"]) {
+    assert.ok(m.neverSuppressPrefixes.includes(p), `${p} должен быть негасимым`)
+  }
+  // «Готово» и «Итог» там быть НЕ должны: иначе они всегда звучали бы.
+  for (const p of ["Готово", "Итог", "Результат"]) {
+    assert.ok(!m.neverSuppressPrefixes.includes(p), `${p} не должен быть негасимым`)
+  }
+})
+
+test("запреты манифеста действуют и при выборе по уровню", () => {
+  // Найдено тестом выше: neverVoicePatterns проверялись только в markedSpoken
+  // и alwaysSpoken, а путь «по уровню» шёл мимо. На режиме по умолчанию вслух
+  // читалось «Ошибка: не найден файл /mnt/c/x.py» — страховка от путей и
+  // ссылок не работала там, где важнее всего.
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  for (const level of ["quiet", "normal", "more", "verbose", "full"]) {
+    for (const bad of [
+      "Ошибка: не найден файл /mnt/c/x.py",
+      "Проверка: сервер https://example.com не отвечает",
+      "Важно: выполнен npm ci",
+    ]) {
+      const out = TTS.pickSpoken(bad, level)
+      assert.ok(!/mnt\/|https?:\/\/|npm /.test(out),
+        `уровень ${level} пропустил запрещённое в речь: ${out}`)
+    }
+  }
+})
+
+test("запрет режет строку целиком, а не предложение", () => {
+  // splitSentences дробит «/mnt/c/x.py» по точке, и от запрещённого предложения
+  // оставался хвост «py», который произносился. Манифест говорит о строках.
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  assert.equal(TTS.dropBanned("Ошибка: нет /mnt/c/x.py", ["/mnt/"]), "")
+  assert.equal(TTS.dropBanned("Обычная строка.\nПуть /mnt/c/x.py", ["/mnt/"]), "Обычная строка.")
+  assert.equal(TTS.dropBanned("Обычная строка", ["/mnt/"]), "Обычная строка", "без запретов ничего не режется")
+  assert.equal(TTS.dropBanned("Любая строка", []), "Любая строка", "пустой список запретов ничего не режет")
+})
+
+test("запрещённая строка не тянет за собой остальные", () => {
+  TTS.applyManifest({ status: "ok", ...readJson("../shared/tts-manifest.json") })
+  const msg = `Первая строка ответа. Вторая строка ответа.
+Ошибка: не найден файл /mnt/c/x.py
+Третья строка ответа.`
+  assert.ok(TTS.pickSpoken(msg, "more").includes("Третья строка"),
+    "обычные строки должны сохраниться, запрет касается только своей строки")
+  assert.ok(!TTS.pickSpoken(msg, "full").includes("x.py"),
+    "на уровне full запрещённое тоже не должно читаться")
 })

@@ -10,7 +10,7 @@
 
 // Версия расширения — ЕДИНСТВЕННОЕ место, где она живёт. Раньше она была
 (function () {
-  var TTS_VERSION = "1.0.52";
+  var TTS_VERSION = "1.0.53";
   "use strict";
 
   // ------------------------------------------------------------------ helpers
@@ -193,38 +193,68 @@
     return Array.isArray(m) ? m : [];
   }
 
-  function markedSpoken(text) {
+  function startsWithAny(line, prefixes) {
+    for (var i = 0; i < prefixes.length; i++) {
+      if (prefixes[i] && line.indexOf(prefixes[i]) === 0) return true;
+    }
+    return false;
+  }
+  // Убирает СТРОКИ, попавшие под запреты манифеста — именно строки, а не
+  // предложения. Так и сказано в манифесте: «если строка содержит такой
+  // фрагмент, она не озвучивается». Резать по предложениям было неверно:
+  // splitSentences дробит «/mnt/c/x.py» по точке, и от запрещённого предложения
+  // оставался хвост «py», который произносился вслух.
+  function dropBanned(text, bans) {
+    var lines = String(text || "").split(/\r?\n/);
+    if (!bans.length) return lines.join("\n");
+    return lines.filter(function (ln) { return !isBanned(ln, bans); }).join("\n");
+  }
+
+  function isBanned(line, bans) {
+    for (var b = 0; b < bans.length; b++) {
+      if (bans[b] && line.indexOf(bans[b]) !== -1) return true;
+    }
+    return false;
+  }
+
+  // Единый проход отбора: возвращает МАССИВ строк, попадающих в речь.
+  // withCritical=true добавляет neverSuppressPrefixes — те, что метка заглушить
+  // не вправе. Один проход вместо склейки двух списков: строка не может
+  // попасть в речь дважды (помечена И начинается с «Ошибка»).
+  function selectedLines(text, withCritical) {
     var mark = mSpeak("marker", DEFAULT_MANIFEST.speak.marker);
     var bans = mList("neverVoicePatterns");
+    var crit = withCritical ? mList("neverSuppressPrefixes") : [];
     var lines = String(text || "").split(/\r?\n/);
     var picked = [];
     for (var i = 0; i < lines.length; i++) {
-      // Метка засчитывается ТОЛЬКО в начале строки (за ведущей разметкой).
-      // Иначе обычное упоминание символа вслух зачитывалось бы, а сам символ
-      // вырезался бы из середины фразы: «приоритет: метка 🔈 → уровень»
-      // превращалось в «приоритет: метка → уровень» и обгоняло настоящий
-      // итог сообщения, который начинается с alwaysVoicePrefixes.
-      // Порядок важен: сперва проверяем «метка сразу», и только иначе срезаем
+      // Порядок важен: сперва проверяем «метка сразу», лишь иначе срезаем
       // ведущую разметку — иначе регулярка съела бы маркер из `>> произнести`.
-      var raw = lines[i].replace(/^\s+/, "");
-      if (raw.indexOf(mark) !== 0) {
-        raw = raw.replace(/^[>*\-\u2022_#\s]+/, "");
-        if (raw.indexOf(mark) !== 0) continue;
-      }
+      var lead = lines[i].replace(/^\s+/, "");
+      if (lead.indexOf(mark) !== 0) lead = lead.replace(/^[>*\-\u2022_#\s]+/, "");
+      var isMarked = lead.indexOf(mark) === 0;
+      if (!isMarked && !crit.length) continue;
       // Метку снимаем первым, потом ведущую разметку: так уходит и хвост
       // жирного `**🔈** текст`.
-      var one = raw.replace(mark, "").replace(/^\s*[*_#>-]+\s*/, "").trim();
+      var one = (isMarked ? lead.replace(mark, "") : lead).replace(/^\s*[*_#>-]+\s*/, "").trim();
       if (!one) continue;
-      // Страховка манифеста: помеченная строка с кодом/путём/ссылкой вслух
-      // не читается — даже если метка стояла.
-      var skip = false;
-      for (var b = 0; b < bans.length; b++) {
-        if (bans[b] && one.indexOf(bans[b]) !== -1) { skip = true; break; }
-      }
-      if (skip) continue;
+      if (!isMarked && !startsWithAny(one, crit)) continue;
+      // Страховка манифеста: строка с кодом/путём/ссылкой вслух не читается.
+      if (isBanned(one, bans)) continue;
       picked.push(one);
     }
-    return picked.join(" ");
+    return picked;
+  }
+
+  function markedSpoken(text) {
+    return selectedLines(text, false).join(" ");
+  }
+
+  // Строки, которые метка заглушить не вправе: ошибки и предупреждения.
+  function criticalSpoken(text) {
+    return selectedLines(text, true).filter(function (one) {
+      return startsWithAny(one, mList("neverSuppressPrefixes"));
+    }).join(" ");
   }
 
   // Строки из alwaysVoicePrefixes озвучиваются ВСЕГДА, даже без метки.
@@ -237,16 +267,8 @@
     for (var i = 0; i < lines.length; i++) {
       var one = lines[i].replace(/^\s*[*_#>-]+\s*/, "").trim();
       if (!one) continue;
-      var hit = false;
-      for (var p = 0; p < pref.length; p++) {
-        if (pref[p] && one.indexOf(pref[p]) === 0) { hit = true; break; }
-      }
-      if (!hit) continue;
-      var skip = false;
-      for (var b = 0; b < bans.length; b++) {
-        if (bans[b] && one.indexOf(bans[b]) !== -1) { skip = true; break; }
-      }
-      if (skip) continue;
+      if (!startsWithAny(one, pref)) continue;
+      if (isBanned(one, bans)) continue;
       picked.push(one);
     }
     return picked.join(" ");
@@ -280,18 +302,33 @@
   // с 1.0.47 число предложений задаёт уровень из манифеста, иначе старое
   // сохранённое значение заблокировало бы шкалу у всех, кто давно пользуется.
   function pickSpoken(text, mode, briefN) {
-    var marked = markedSpoken(text);
-    if (marked) { REPORTER("mark", { mode: mode, chars: marked.length, text: marked.slice(0, 90) }); return marked; }
+    // Метка плюс то, что она заглушить не вправе. Один проход отбора, поэтому
+    // строка «Ошибка: …», если она же помечена, попадёт в речь ровно один раз.
+    var pickedLines = selectedLines(text, true);
+    if (pickedLines.length) {
+      var joined = pickedLines.join(" ");
+      REPORTER(pickedLines.some(function (l) { return startsWithAny(l, mList("neverSuppressPrefixes")); })
+        ? "mark+critical" : "mark",
+        { mode: mode, chars: joined.length, lines: pickedLines.length, text: joined.slice(0, 90) });
+      return joined;
+    }
     var always = alwaysSpoken(text);
     if (always) { REPORTER("always", { mode: mode, chars: always.length, text: always.slice(0, 90) }); return always; }
     if (mode === "manual") { REPORTER("skip", { mode: mode, reason: "режим manual, метки нет" }); return ""; }
+    // neverVoicePatterns обязаны действовать и здесь. Раньше запреты проверялись
+    // только в markedSpoken/alwaysSpoken, а выбор по уровню шёл мимо них: на
+    // режиме по умолчанию вслух спокойно читалось «Ошибка: не найден файл
+    // /mnt/c/x.py» — то есть страховка от путей и ссылок не работала ни там,
+    // где важнее всего.
+    var safe = dropBanned(text, mList("neverVoicePatterns"));
+    if (!safe) { REPORTER("skip", { mode: mode, reason: "всё запрещено манифестом" }); return ""; }
     var cfg = mLevel(levelId(mode)) || {};
     var sentences = cfg.sentences | 0;
     if (sentences <= 0) {
-      REPORTER("level", { mode: mode, all: true, chars: (text || "").length });
-      return String(text || "");   // full — без ограничений
+      REPORTER("level", { mode: mode, all: true, chars: safe.length });
+      return safe;   // full — без ограничений, но тоже без запрещённого
     }
-    var out = capChars(briefSentences(text, sentences, { includeErrors: true }), cfg.maxChars);
+    var out = capChars(briefSentences(safe, sentences, { includeErrors: true }), cfg.maxChars);
     if (!out) { REPORTER("skip", { mode: mode, reason: "уровень не дал текста" }); return ""; }
     REPORTER("level", { mode: mode, sentences: sentences, chars: out.length, text: out.slice(0, 90) });
     return out;
@@ -1190,6 +1227,9 @@
     chunkSentences: chunkSentences,
     markedSpoken: markedSpoken,
     alwaysSpoken: alwaysSpoken,
+    criticalSpoken: criticalSpoken,
+    dropBanned: dropBanned,
+    selectedLines: selectedLines,
     pickSpoken: pickSpoken,
     applyManifest: applyManifest,
     utteranceBudget: utteranceBudget,
