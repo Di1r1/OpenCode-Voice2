@@ -17,6 +17,9 @@
 #   ./setup.sh --configure         # показать строки для конфига OpenCode
 #   ./setup.sh --write-config      # то же + вписать пути в ~/.config/opencode/*.json (с бэкапом)
 #   ./setup.sh --yes, -y           # не задавать вопросов
+#   ./setup.sh --rules              # развернуть правила озвучки для ассистента
+#                                   # в ~/.config/opencode/AGENTS.md (правило «помечай 🔈»)
+#   ./setup.sh --uninstall-rules   # вырезать эти правила обратно
 #   ./setup.sh --no-pip            # не ставить Python-пакеты
 #   ./setup.sh --no-sync           # не генерировать entry-файлы плагина
 #
@@ -41,6 +44,8 @@ CONFIGURE=0
 WRITE_CONFIG=0
 DO_TTS=0
 DO_ALL=0
+DO_RULES=0
+UNDO_RULES=0
 MODEL_SIZE="${WHISPER_CPP_MODEL_SIZE:-medium}"
 
 HOME_DIR="${OPENCODE_VOICE_HOME:-$HOME/.local/share/opencode-voice}"
@@ -49,6 +54,19 @@ TTS_DIR="${OPENCODE_VOICE_TTS_HOME:-$HOME_DIR/tts}"
 TTS_PIPER_DIR="$TTS_DIR/piper"
 TTS_VOICES_DIR="${OPENCODE_VOICE_TTS_VOICES_DIR:-$TTS_DIR/voices}"
 OPENCODE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+
+# Вспомогательные функции — до pick_config_file: тот зовёт warn() при первом же
+# запуске, и без них предупреждение о двух конфигах молча пропадало.
+C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_DIM=$'\033[2m'; C_OFF=$'\033[0m'
+ok()   { printf '%s✓%s %s\n' "$C_OK" "$C_OFF" "$*"; }
+# warn и err пишут в stderr. Иначе предупреждение внутри $( ) подменяет
+# stdout: pick_config_file вызывается как OPENCODE_CONFIG_FILE="$(pick_config_file)",
+# и при двух конфигах (opencode.json + opencode.jsonc) путь забивался текстом
+# предупреждения — -f его не находил, и --write-config писал не туда.
+warn() { printf '%s!%s %s\n' "$C_WARN" "$C_OFF" "$*" >&2; }
+err()  { printf '%s✗%s %s\n' "$C_ERR" "$C_OFF" "$*" >&2; }
+info() { printf '%s·%s %s\n' "$C_DIM" "$C_OFF" "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
 # OpenCode читает и opencode.json, и opencode.jsonc. Если файлов два, берем
 # более новый и обязательно предупреждаем: два файла конфига — классическая
@@ -66,12 +84,6 @@ pick_config_file() {
 }
 OPENCODE_CONFIG_FILE="$(pick_config_file)"
 
-C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_DIM=$'\033[2m'; C_OFF=$'\033[0m'
-ok()   { printf '%s✓%s %s\n' "$C_OK" "$C_OFF" "$*"; }
-warn() { printf '%s!%s %s\n' "$C_WARN" "$C_OFF" "$*"; }
-err()  { printf '%s✗%s %s\n' "$C_ERR" "$C_OFF" "$*" >&2; }
-info() { printf '%s·%s %s\n' "$C_DIM" "$C_OFF" "$*"; }
-have() { command -v "$1" >/dev/null 2>&1; }
 
 while [ $# -gt 0 ]; do
   arg="$1"; shift
@@ -80,6 +92,8 @@ while [ $# -gt 0 ]; do
     --cpu) MODE_GPU=0; GPU_EXPLICIT=1 ;;
     --tts) DO_TTS=1 ;;
     --all) DO_ALL=1 ;;
+    --rules) DO_RULES=1 ;;
+    --uninstall-rules) UNDO_RULES=1 ;;
     --check) CHECK_ONLY=1 ;;
     --yes|-y) ASSUME_YES=1 ;;
     --no-pip) DO_PIP=0 ;;
@@ -88,7 +102,9 @@ while [ $# -gt 0 ]; do
     --write-config) CONFIGURE=1; WRITE_CONFIG=1 ;;
     --model-size) MODEL_SIZE="${1:?--model-size требует значение}"; shift ;;
     --model-size=*) MODEL_SIZE="${arg#*=}" ;;
-    -h|--help) sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # Печатаем ведущий блок комментария целиком. Раньше был жёсткий диапазон
+    # '2,27p', и любая правка usage его обрезала.
+    -h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) err "неизвестный флаг: $arg (см. --help)"; exit 2 ;;
   esac
 done
@@ -404,6 +420,39 @@ if [ "$DO_SYNC" = "1" ] && [ -x "$HERE/sync-plugin.sh" ]; then
   echo "== Плагин =="
   if bash "$HERE/sync-plugin.sh" >/dev/null 2>&1; then ok "entry-файлы сгенерированы ($HERE/.opencode/)"; else
     warn "sync-plugin.sh завершился с ошибкой — запустите вручную: bash $HERE/sync-plugin.sh"; fi
+fi
+
+# Правила озвучки для ассистента. Кладутся в глобальные инструкции OpenCode,
+# поэтому действуют во всех сессиях и на любой машине после установки. Текст
+# берётся из shared/tts-manifest.json, раздел assistant — отсюда он
+# переезжает вместе с плагином и не расходится с кодом.
+# Блок обрамлён маркерами: повторный запуск обновляет, uninstall вырезает.
+if [ "$UNDO_RULES" = "1" ] || [ "$DO_RULES" = "1" ]; then
+  echo
+  echo "== Правила озвучки для ассистента =="
+  RULES_SCRIPT="$HERE/scripts/assistant-rules.mjs"
+  NODE_BIN="$(command -v node || true)"
+  if [ -z "$NODE_BIN" ] && [ -x "$HOME/.local/opt/node22/bin/node" ]; then NODE_BIN="$HOME/.local/opt/node22/bin/node"; fi
+  if [ -z "$NODE_BIN" ]; then
+    warn "node не найден — правила не развернуты. Поставь Node 22 и повтори: ./setup.sh --rules"
+  elif [ ! -f "$RULES_SCRIPT" ]; then
+    warn "нет $RULES_SCRIPT — правила не развернуты"
+  else
+    if [ "$UNDO_RULES" = "1" ]; then
+      if "$NODE_BIN" "$RULES_SCRIPT" uninstall 2>&1 | sed 's/^/  /'; then
+        ok "правила озвучки вырезаны"
+      else
+        warn "не удалось вырезать правила"
+      fi
+    else
+      if "$NODE_BIN" "$RULES_SCRIPT" install 2>&1 | sed 's/^/  /'; then
+        ok "ассистент получил правило «помечай 🔈 в каждом ответе»"
+        info "перезапусти Opencode — глобальные инструкции читаются при старте"
+      else
+        warn "правила не установлены — запусти вручную: $NODE_BIN $RULES_SCRIPT install"
+      fi
+    fi
+  fi
 fi
 
 # Копируем .opencode/plugins/voice/ (index.ts + tui.tsx), чтобы OpenCode мог загрузить плагин

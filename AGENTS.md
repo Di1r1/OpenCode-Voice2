@@ -45,6 +45,8 @@
 | STT server | `stt-server/stt_server.py` | HTTP STT и server-side recording |
 | Extension | `extension/` | Кнопка Chrome для Web UI |
 | Sync | `sync-plugin.sh` | Поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh` |
+| Правила для ассистента | `shared/tts-manifest.json` → `assistant.rulesMarkdown` | Текст правила «помечай 🔈 в каждом ответе» |
+| Установка правил | `scripts/assistant-rules.mjs`, `setup.sh --rules` | Разворачивает правила в `~/.config/opencode/AGENTS.md` |
 | Диагностика | `doctor.sh`, `fix-mic.sh` | Server/CORS/mic и восстановление |
 | Skills | `.opencode/skills/` | 11 `ovi-*` skills; см. [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md) |
 | Migration report | `V2_MIGRATION.md` | Evidence, статусы и remaining tasks |

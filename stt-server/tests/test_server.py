@@ -909,3 +909,16 @@ def test_manifest_fallback_keeps_the_scale(client, monkeypatch, tmp_path):
     assert speak["levelOrder"], "во фолбэке пропала шкала"
     for level_id in speak["levelOrder"]:
         assert level_id in speak["levels"], f"во фолбэке нет уровня {level_id}"
+
+
+def test_manifest_ships_assistant_rules(client):
+    """Правила для ассистента едут манифестом — значит переезжают на любую машину."""
+    a = client.get("/manifest").get_json()["assistant"]
+    assert a["enabled"] is True, "правила должны быть включены"
+    assert a["mustMarkEveryReply"] is True, "главное требование помечать каждый ответ"
+    r = a["rulesMarkdown"]
+    assert a["beginSentinel"] in r or a["rulesMarkdown"], "пустые правила"
+    marker = client.get("/manifest").get_json()["speak"]["marker"]
+    assert marker in r, "в правилах должен быть реальный маркер из манифеста"
+    assert a["beginSentinel"] and a["endSentinel"], "нет маркеров обрамляющего блока"
+    assert "~/.config/opencode" in a["targetFile"], "правила должны идти в глобальные инструкции"
