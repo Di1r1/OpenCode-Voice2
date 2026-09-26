@@ -1,6 +1,6 @@
 ---
 name: ovi-extension
-description: Use when working with the OpenCode Voice Chrome extension or the mic button — manifest, content.js, popup token, beeps toggle, X-Voice-Source header, CORS failures ("Failed to fetch"), version bumps and extension reload. Triggers extension, chrome://extensions, mic button, popup, voice button, content.js, Failed to fetch (button).
+description: Use when working with the OpenCode Voice V2 Chrome extension or the mic button — manifest, content.js, popup token, beeps toggle, X-Voice-Source header, CORS failures ("Failed to fetch"), version bumps and extension reload. Triggers extension, chrome://extensions, mic button, popup, voice button, content.js, Failed to fetch (button).
 license: MIT
 compatibility: opencode
 metadata:
@@ -12,8 +12,8 @@ metadata:
 # OpenCode Voice — Chrome extension (the "button")
 
 Directory: `<PROJECT_ROOT>/extension/` (MV3). Files: `manifest.json`, `content.js`, `content.css`, `popup.html`,
-`popup.js`, `icon.svg`, `README.md`. Current version **1.0.34** (also printed in the console as
-`[OpenCode Voice] content.js v1.0.34 loaded`).
+`popup.js`, `icon.svg`, `README.md`. Current version **1.0.54** (also printed in the console as
+`[OpenCode Voice] content.js v1.0.54 loaded`).
 
 ## Flow
 

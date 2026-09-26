@@ -1,6 +1,6 @@
 ---
 name: ovi-security
-description: Использовать при вопросах безопасности и приватности OpenCode Voice — токен доступа, CORS-allowlist, bind на 127.0.0.1, что остаётся в записях и логах, ретеншен/ОЗУ, гигиена секретов в публичном репозитории, права расширения. Ключевые слова: токен, X-Voice-Token, CORS, host, 0.0.0.0, приватность, секреты, публичный репо, retention, KEEP_AUDIO.
+description: "Использовать при вопросах безопасности и приватности OpenCode Voice V2 — токен доступа, CORS-allowlist, bind на 127.0.0.1, что остаётся в записях и логах, ретеншен/ОЗУ, гигиена секретов в публичном репозитории, права расширения. Ключевые слова: токен, X-Voice-Token, CORS, host, 0.0.0.0, приватность, секреты, публичный репо, retention, KEEP_AUDIO."
 license: MIT
 compatibility: opencode
 metadata:
@@ -20,7 +20,7 @@ metadata:
 | Токен доступа | `_auth_token`, `_check_token`; расширение (popup) | `OPENCODE_VOICE_TOKEN`; все эндпоинты кроме `/health` и preflight требуют `X-Voice-Token` (или `Authorization: Bearer`) |
 | Записи в ОЗУ + ретеншен | `recorder.ts`, `stt_server.py` | `/dev/shm/opencode-voice`; scheduled cleanup через `OPENCODE_VOICE_RETAIN_SECONDS` (300 с), но `<=0` отключает cleanup и требует manual deletion; `OPENCODE_VOICE_KEEP_AUDIO` отключает |
 | Логи с текстом | `/tmp/opencode/voice-recognized.log` | каждый распознанный текст + `source=`; чистить перед отправкой наружу |
-| Права расширения | `extension/manifest.json` | `content_scripts.matches` = только `http://localhost:*/*` + `http://127.0.0.1:*/*` (v1.0.35), `<all_urls>` удалён; STT-цель не выводится из `location.hostname`. Остаточный дефект: `host_permissions` содержат невалидные `172.16.0.0/12` и `192.168.0.0/16` |
+| Права расширения | `extension/manifest.json` | `content_scripts.matches` и `host_permissions` = только `http://localhost:*/*` + `http://127.0.0.1:*/*`, `<all_urls>` удалён; STT-цель не выводится из `location.hostname`. Прежний дефект с CIDR-подсетями в `host_permissions` (невалидные match patterns, которые Chrome и Web Store не понимали) **исправлен** — сейчас оба списка идентичны и содержат только localhost-паттерны |
 
 TTS lifecycle: cache eviction is size-based, not time-based; server purge skips `tts-*` entries;
 `/tmp/opencode/voice-tts.log` has no retention/rotation policy. Treat cache and TTS log as
@@ -48,7 +48,8 @@ headers and payloads before sharing. Do not claim rotation or retention is alrea
    `location.hostname` — `sttHost` сохраняется только для `TRUSTED_STT_HOSTS`, а `popup.js`
    пропускает через `trustedSttHost()` лишь loopback. При расширении `matches` обязателен
    повторный manifest/store review; токен хранится в `chrome.storage.local`, не в коде.
-   Остаточный дефект: невалидные `host_permissions` (`172.16.0.0/12`, `192.168.0.0/16`).
+   Прежний остаточный дефект с CIDR-подсетями в `host_permissions` исправлен: сейчас
+   `host_permissions` = `http://localhost:*/*` и `http://127.0.0.1:*/*`.
 5. **Файлы больше не нужны — lifecycle/manual purge.** Записи и `*.webm` в `/dev/shm` и `/tmp/opencode`
    могут требовать manual purge; `OPENCODE_VOICE_RETAIN_SECONDS<=0` отключает scheduled cleanup.
 6. **Shell injection (P0 закрыто).** `src/lib/shell.ts` не использует `/bin/bash`: значения

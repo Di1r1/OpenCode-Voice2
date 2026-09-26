@@ -1,6 +1,6 @@
 ---
 name: ovi-setup
-description: Use when installing or onboarding OpenCode Voice on a (new) machine — setup.sh flags including --all, env.sh persistence, --write-config, extension sideload, first-run checks. Keywords: setup.sh, установка, env.sh, Load unpacked, --all, --tts.
+description: "Use when installing or onboarding OpenCode Voice V2 on a (new) machine — setup.sh flags including --all, env.sh persistence, --write-config, extension sideload, first-run checks. Keywords: setup.sh, установка, env.sh, Load unpacked, --all, --tts."
 ---
 
 # Установка (setup)

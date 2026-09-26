@@ -1,6 +1,6 @@
 ---
 name: ovi-models
-description: Use when choosing or tuning STT models/backends, setting up GPU (CUDA toolkit, whisper.cpp build, GTX 950M / CC 5.0), switching GPU↔CPU, or measuring quality/speed for OpenCode Voice. Triggers whisper.cpp, ggml model, faster-whisper, CUDA, nvcc, GPU, model quality, beam, VAD, transcription speed.
+description: Use when choosing or tuning STT models/backends, setting up GPU (CUDA toolkit, whisper.cpp build, GTX 950M / CC 5.0), switching GPU↔CPU, or measuring quality/speed for OpenCode Voice V2. Triggers whisper.cpp, ggml model, faster-whisper, CUDA, nvcc, GPU, model quality, beam, VAD, transcription speed.
 license: MIT
 compatibility: opencode
 metadata:

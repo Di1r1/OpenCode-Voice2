@@ -1,6 +1,6 @@
 ---
 name: ovi-server
-description: Use when working with the OpenCode Voice STT HTTP server — /health, /transcribe, /record/start|status|stop, /beep, access token, CORS allowlist, silence gate, autostart/watchdog, runtime checks, or reading its logs. Triggers stt_server.py, port 8765, /transcribe, X-Voice-Token, CORS, watchdog.
+description: Use when working with the OpenCode Voice V2 STT HTTP server — /health, /transcribe, /record/start|status|stop, /beep, access token, CORS allowlist, silence gate, autostart/watchdog, runtime checks, or reading its logs. Triggers stt_server.py, port 8765, /transcribe, X-Voice-Token, CORS, watchdog.
 license: MIT
 compatibility: opencode
 metadata:

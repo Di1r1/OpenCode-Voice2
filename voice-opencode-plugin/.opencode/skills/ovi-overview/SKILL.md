@@ -1,6 +1,6 @@
 ---
 name: ovi-overview
-description: Use when the question is about OpenCode Voice as a whole — what it is, which components exist (plugin, STT server, browser extension/button, TUI/web UI), how audio and text flow, where files live, or which ovi-* skill to open next. Triggers "OpenCode Voice", "voice plugin", "voice button", "how does voice work", architecture.
+description: Use when the question is about OpenCode Voice V2 as a whole — what it is, which components exist (plugin, STT server, browser extension/button, TUI/web UI), how audio and text flow, where files live, or which ovi-* skill to open next. Triggers "OpenCode Voice V2", "voice plugin", "voice button", "how does voice work", architecture.
 license: MIT
 compatibility: opencode
 metadata:
@@ -21,7 +21,7 @@ Web UI path and inserts its transcript into the editor.
 | --- | --- | --- |
 | Plugin (server-side) | `src/index.ts` (working plain object `{ id, setup(ctx) }`, no value-import of `@opencode/plugin`) | Registers `/voice` + `/v` through `ctx.command.transform(editor => editor.add(...))` and performs recording/transcription |
 | Plugin libs | `src/lib/{stt,recorder,beep,server-launcher,config,shell}.ts` | STT, recording, beeps, launcher, config, and V2 shell adapter |
-| Loaded plugin copy | `.opencode/plugins/voice/` (index, tui, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`) | The copy OpenCode actually loads; `sync-plugin.sh` supplies and `--check` verifies all 19 files |
+| Loaded plugin copy | `.opencode/plugins/voice/` (index, tui, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`) | The copy OpenCode actually loads; `sync-plugin.sh` supplies and `--check` verifies all 20 files |
 | STT HTTP server | `stt-server/stt_server.py` | `/transcribe`, `/record/*`, `/beep`, `/health`; local Whisper |
 | Chrome extension (button) | `extension/` | Browser capture and Web UI editor insertion |
 | TUI plugin | `.opencode/plugins/voice/tui.tsx` | `<leader>v` route to the server command; `🎤` is a status indicator, not a clickable button |
@@ -61,7 +61,7 @@ The button bypasses WSLg/RDP `audin`; TUI recording depends on the local audio p
 | --- | --- |
 | Plugin internals, `/voice`, recorder, V2 prompt semantics | `ovi-plugin` |
 | Server API, token, CORS, logs, deployment launcher | `ovi-server` |
-| Button/extension, sounds, popup, version `1.0.34` | `ovi-extension` |
+| Button/extension, sounds, popup, version `1.0.54` | `ovi-extension` |
 | Models, CPU/GPU, quality/speed tuning | `ovi-models` |
 | Microphone/audio, silence, audin, formats | `ovi-audio` |
 | Security/privacy, bind, retention, secrets | `ovi-security` |

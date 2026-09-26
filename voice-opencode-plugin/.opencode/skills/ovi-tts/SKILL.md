@@ -1,6 +1,6 @@
 ---
 name: ovi-tts
-description: Use when working with TTS read-aloud of assistant answers — extension/tts.js engines, server POST /speak with Piper, chunking, stuck-speech watchdog, popup TTS settings. Keywords: tts, speak, озвучка, Piper, utteranceBudget, primeAudio, /voices.
+description: "Use when working with TTS read-aloud of assistant answers in OpenCode Voice V2 — extension/tts.js engines, server POST /speak with Piper, chunking, stuck-speech watchdog, popup TTS settings. Keywords: tts, speak, озвучка, Piper, utteranceBudget, primeAudio, /voices."
 ---
 
 # TTS (озвучка ответов)
@@ -33,7 +33,7 @@ required where needed; do not promise time-based deletion.
 3. Заголовок `X-Voice-Source: tts` обязан побеждать `button` из `authHeaders()`
    (`Object.assign({}, authHeaders(), {...tts})`) — иначе неверный source в логах.
 4. Проверки: `GET /voices` (каталог), `POST /speak` → 200 + WAV
-   (`curl ... -o /tmp/tts-test.wav -w "%{http_code}\n"`), `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test`
+   (`curl ... -o /tmp/tts-test.wav -w "%{http_code}\n"`), `PATH=$HOME/.local/opt/node22/bin:$PATH npm test`
    (паритет `cleanForSpeech`), `pytest -k speak` (помни про затык с живыми
    голосами — см. `ovi-dev`).
 
@@ -55,9 +55,11 @@ required where needed; do not promise time-based deletion.
 
 ## 4. Чек-лист
 
-- [ ] оба движка проверены отдельно; server TTS сейчас не подтверждён (`tts.available=false`, Piper отсутствует)
+- [ ] оба движка проверены отдельно; состояние server TTS **не предполагать**, а проверить:
+      `curl -s http://127.0.0.1:8765/health` → `tts.available`. `available: false` означает, что
+      Piper не установлен (лечится `setup.sh --tts`), и это не дефект кода
 - [ ] длинные ответы идут чанками, без `413`
-- [ ] `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test` + `pytest -k speak` зелёные (с учётом затыка живых голосов)
+- [ ] `PATH=$HOME/.local/opt/node22/bin:$PATH npm test` + `pytest -k speak` зелёные (с учётом затыка живых голосов)
 - [ ] версия расширения поднята (`manifest.json` + лог в `content.js`); запись о релизе
       добавлена в `V2_MIGRATION.md` либо `CHANGELOG.md` создан только отдельной задачей (в
       текущем `openvi2` его нет)

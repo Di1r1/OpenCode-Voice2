@@ -1,6 +1,6 @@
 ---
 name: ovi-audio
-description: Использовать при проблемах со звуком и качеством распознавания — микрофон молчит, «Аудиоисточник молчит», тишина, обрезанная запись, плохое качество по RDP, неправильный источник (RDPSource / Stereo Mix), форматы и уровни, fix-mic.sh, doctor.sh, autocтоп и порог тишины. Ключевые слова: микрофон, silence, audin, PulseAudio, arecord, peak, RMS, доставка, RDP, fix-mic, doctor.
+description: "Использовать при проблемах со звуком и качеством распознавания в OpenCode Voice V2 — микрофон молчит, «Аудиоисточник молчит», тишина, обрезанная запись, плохое качество по RDP, неправильный источник (RDPSource / Stereo Mix), форматы и уровни, fix-mic.sh, doctor.sh, autocтоп и порог тишины. Ключевые слова: микрофон, silence, audin, PulseAudio, arecord, peak, RMS, доставка, RDP, fix-mic, doctor."
 license: MIT
 compatibility: opencode
 metadata:

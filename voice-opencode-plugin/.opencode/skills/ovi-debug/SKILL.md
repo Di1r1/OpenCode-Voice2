@@ -1,6 +1,6 @@
 ---
 name: ovi-debug
-description: Use when OpenCode Voice misbehaves — the extension button says "Failed to fetch", 401/409 errors, /voice hangs or returns no speech, the mic is silent or the channel is slow, transcripts are garbled, or you need doctor.sh/fix-mic.sh and log locations. Triggers Failed to fetch, mic does not work, no speech, silence, already recording, audin, fix-mic, doctor, troubleshooting.
+description: Use when OpenCode Voice V2 misbehaves — the extension button says "Failed to fetch", 401/409 errors, /voice hangs or returns no speech, the mic is silent or the channel is slow, transcripts are garbled, or you need doctor.sh/fix-mic.sh and log locations. Triggers Failed to fetch, mic does not work, no speech, silence, already recording, audin, fix-mic, doctor, troubleshooting.
 license: MIT
 compatibility: opencode
 metadata:
@@ -39,7 +39,7 @@ Inside OpenCode: `/voice doctor` and `/voice doctor --fix` (summary lands in the
 | Slow, low-level capture over RDP | third-party RDP client captures on the browser main thread (~85 ms buffers, AEC/AGC on) → ~0.4× realtime | Use the native client or the extension button; a Windows-side WASAPI agent is the radical fix |
 | Sounds missing (extension) | Chrome kept an old `content.js` | `chrome://extensions` → Reload, then F5 |
 | `/voice doctor` unknown | plugin copy predates the command | Restart OpenCode (config-time change) |
-| Plugin not loaded at all | stale/mismatched synced copy | `bash sync-plugin.sh --check` (19 files), then restart; also check the log line `loading plugin` — `/api/plugin?directory=...` ignores its param in v2.0.15, so query `/api/plugin` without it |
+| Plugin not loaded at all | stale/mismatched synced copy | `bash sync-plugin.sh --check` (20 files), then restart; also check the log line `loading plugin` — `/api/plugin?directory=...` ignores its param in v2.0.15, so query `/api/plugin` without it |
 | Extension still shows the mic button on unrelated sites | Chrome kept the old bundle with `<all_urls>` | Reload the extension in `chrome://extensions` (v1.0.35) |
 
 ## Repairing the WSLg audio channel

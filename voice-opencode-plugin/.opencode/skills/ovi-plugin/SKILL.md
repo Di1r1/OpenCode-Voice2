@@ -1,6 +1,6 @@
 ---
 name: ovi-plugin
-description: Use when editing or debugging the OpenCode Voice plugin itself — V2 entrypoint, /voice subcommands, recorder (auto-stop by silence, graceful SIGINT, RAM tmp dir, retention), beeps, logRecognized, server launcher, sync-plugin.sh and the loader quirk. Triggers src/index.ts, recorder.ts, stt.ts, /voice command, push-to-talk.
+description: Use when editing or debugging the OpenCode Voice V2 plugin itself — the V2 entrypoint, /voice subcommands, recorder (auto-stop by silence, graceful SIGINT, RAM tmp dir, retention), beeps, logRecognized, server launcher, sync-plugin.sh and the loader quirk. Triggers src/index.ts, recorder.ts, stt.ts, /voice command, push-to-talk.
 license: MIT
 compatibility: opencode
 metadata:
@@ -32,7 +32,7 @@ the loader try to resolve/build the project `node_modules`; the package dependen
 development/type dependency, not a runtime server import.
 
 `sync-plugin.sh` supplies the **whole** bundle: entrypoints (`index.ts`, `tui.tsx`), `src/lib/*.ts`,
-`stt-server/`, `shared/`, `doctor.sh` and `fix-mic.sh` (19 files). `bash sync-plugin.sh --check`
+`stt-server/`, `shared/`, `doctor.sh` and `fix-mic.sh` (20 files). `bash sync-plugin.sh --check`
 verifies each file and exits `1` on drift. The launcher, `heal`, `whisper` and `text` resolve
 resources relative to the bundle (e.g. `../stt-server/`, `../shared/stt-spec.json`), not only
 relative to `cwd`, so V2 autostart works from any service cwd. `test/deploy.test.mjs` asserts
