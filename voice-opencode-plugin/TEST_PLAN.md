@@ -2,7 +2,7 @@
 
 > OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
-**Корень всех команд:** `<PROJECT_ROOT>`  
+**Корень всех команд:** `<PROJECT_ROOT>` — каталог `voice-opencode-plugin/` в корне репозитория  
 **Проверенная среда:** OpenCode `v2.0.15`  
 **Связанный отчёт:** [`V2_MIGRATION.md`](V2_MIGRATION.md)
 
@@ -57,7 +57,8 @@ code/config task.
 ### Workflow check (если target содержит workflows)
 
 ```bash
-if [[ -d <PROJECT_ROOT>/.github/workflows ]]; then
+# .github/ лежит в корне репозитория, на уровень выше каталога плагина
+if [[ -d <PROJECT_ROOT>/../.github/workflows ]]; then
   bash check-workflows.sh
 else
   echo 'SKIP (no workflows in target)'

@@ -66,7 +66,7 @@ Matrix (all applicable checks must be green before a commit; the workflow row ma
 3. `python3 -m py_compile stt-server/stt_server.py` — syntax check for the server module.
 4. `bash sync-plugin.sh --check` — `.opencode/plugins/voice/index.ts` matches `src/index.ts` and
    `tui.tsx` matches `src/tui.tsx`.
-5. If `<PROJECT_ROOT>/.github/workflows` exists, run `bash check-workflows.sh` for CI YAML
+5. If `<PROJECT_ROOT>/../.github/workflows` exists, run `bash check-workflows.sh` for CI YAML
    validity. This is the only conditional live command. If the directory is absent, record
    exactly `SKIP (no workflows in target)`; an empty check must not be reported as PASS.
 6. Typecheck — `UNVERIFIED` unless local dependencies are actually installed. Do not run the

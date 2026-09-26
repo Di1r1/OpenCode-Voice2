@@ -40,9 +40,10 @@ Rules:
   `setup.sh` diffs — `ovi-setup`. No skill loaded = no review. If a skill
   contradicts the code, stop and flag the contradiction instead of guessing.
 - Review scope is the task diff when the target is a git checkout, or the caller-provided file
-  list when it is not (as in `<PROJECT_ROOT>`). In the non-git fallback use file timestamps and
-  targeted reads against a supplied baseline; do not require git metadata, shell commands, or
-  review of the whole tree unprompted.
+  list when the target is not a git worktree. `<PROJECT_ROOT>` is a subdirectory of the repo, so
+  git works from it but reports paths prefixed with `voice-opencode-plugin/`. In the non-git
+  fallback use file timestamps and targeted reads against a supplied baseline; do not
+  require git metadata, shell commands, or review of the whole tree unprompted.
 
 Checklist:
 - Plugin loader: `src/index.ts` should remain a plain `{ id, setup(ctx) }` default export without a server-side value-import of `@opencode/plugin`; top-level loader-incompatible exports remain a review concern.

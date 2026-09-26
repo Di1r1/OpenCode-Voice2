@@ -40,9 +40,10 @@ Rules:
   flag the contradiction instead of guessing. This repository is public —
   treat every file as attacker-visible.
 - Audit scope is the task diff when the target is a git checkout, or the caller-provided file
-  list when it is not (as in `<PROJECT_ROOT>`). In the non-git fallback use file timestamps and
-  targeted reads against a supplied baseline; do not require git metadata, shell commands, or
-  review of the whole tree unprompted.
+  list when the target is not a git worktree. `<PROJECT_ROOT>` is a subdirectory of the repo, so
+  git works from it but reports paths prefixed with `voice-opencode-plugin/`. In the non-git
+  fallback use file timestamps and targeted reads against a supplied baseline; do not
+  require git metadata, shell commands, or review of the whole tree unprompted.
 
 Checklist:
 - Token: every server endpoint except `/health` must go through `_check_token`;

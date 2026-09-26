@@ -12,6 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Скрипт лежит в voice-opencode-plugin/, .github/ — на уровень выше, в корне репозитория.
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DIR="${1:-$REPO_ROOT/.github/workflows}"
 

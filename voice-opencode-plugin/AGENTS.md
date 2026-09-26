@@ -3,8 +3,10 @@
 > OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 Документ описывает Voice для OpenCode V2. Подробный срез миграции и матрица статусов находятся
-в [`V2_MIGRATION.md`](V2_MIGRATION.md). Все пути в этом документе начинаются от корня
-`<PROJECT_ROOT>`, если не указано иное.
+в [`V2_MIGRATION.md`](V2_MIGRATION.md). Все пути в этом документе начинаются от
+`<PROJECT_ROOT>` — каталога `voice-opencode-plugin/`, который лежит в корне репозитория
+рядом с `README.md`, `LICENSE` и `.github/`. Это тот же каталог, из которого запускается
+OpenCode и откуда выполняются команды разработки, если не указано иное.
 
 ## Текущий статус V2
 
@@ -12,7 +14,7 @@
 - Server plugin `voice` загружается; команды `voice` и `v` зарегистрированы.
 - Core port V2 работает для запуска, команд, PTT и кнопки расширения.
 - Extension scope **least-privilege**: `content_scripts.matches` содержит только
-  `http://localhost:*/*` и `http://127.0.0.1:*/*`; `<all_urls>` удалён, версия расширения `1.0.36`.
+  `http://localhost:*/*` и `http://127.0.0.1:*/*`; `<all_urls>` удалён, версия расширения `1.0.54`.
 - `host_permissions` приведены к валидным match patterns: только `localhost` и `127.0.0.1`
   (записи вида `172.16.0.0/12` Chrome не понимает и Web Store отвергал сборку).
 - Shell adapter **является** security boundary: `src/lib/shell.ts` передаёт значения как argv

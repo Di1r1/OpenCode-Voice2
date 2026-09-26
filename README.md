@@ -6,15 +6,18 @@
 промпте. Работает в терминале (хоткей), в веб-интерфейсе (кнопка в расширении Chrome) и
 полностью локально: распознавание через `faster-whisper`, без отправки аудио в интернет.
 
-**Версия плагина 0.5.0 · расширение 1.0.36 · проверено на OpenCode v2.0.15**
+**Версия плагина 0.5.0 · расширение 1.0.54 · проверено на OpenCode v2.0.15**
 
 ---
 
 ## Быстрый старт
 
+Плагин лежит в подпапке `voice-opencode-plugin/` — из неё запускаются и OpenCode, и все
+команды разработки.
+
 ```bash
 git clone https://github.com/Di1r1/OpenCode-Voice2.git
-cd OpenCode-Voice2
+cd OpenCode-Voice2/voice-opencode-plugin
 npm ci
 ./setup.sh --all          # зависимости + регистрация плагина в OpenCode
 ./setup.sh --tts          # озвучка ответов (по желанию)
@@ -22,10 +25,10 @@ opencode serve --hostname 127.0.0.1
 ```
 
 Кнопка микрофона в браузере: `chrome://extensions` → «Режим разработчика» →
-«Загрузить распакованное расширение» → папка **`extension`** в проекте.
+«Загрузить распакованное расширение» → папка **`voice-opencode-plugin/extension`**.
 
 **Полная инструкция, включая перенос на другую машину и разбор ошибок — в
-[`INSTALL.md`](INSTALL.md).**
+[`INSTALL.md`](voice-opencode-plugin/INSTALL.md).**
 
 ---
 
@@ -46,12 +49,12 @@ opencode serve --hostname 127.0.0.1
 в каждом ответе» — с таблицей по всем шести уровням и предупреждением про метку в
 середине фразы. Действует во всех сессиях и на любой машине после установки, так
 что озвучка не зависит от того, помнит ли об этом ассистент. Отключается
-`./setup.sh --uninstall-rules`. Подробности в [INSTALL.md §5.3](INSTALL.md).
+`./setup.sh --uninstall-rules`. Подробности в [INSTALL.md §5.3](voice-opencode-plugin/INSTALL.md).
 
 **Уровень озвучки.** Пять ступеней подробности: «Только важное» → «Кратко» → «Подробно» →
 «Очень подробно» → «Всё целиком». Каждая задаёт, сколько первых предложений читать и какой
 потолок по символам, так что можно выбрать «чуть больше, но не весь ответ». Ступени и их
-подписи лежат в манифесте, поэтому переезжают вместе с плагином. Сводка в [INSTALL.md §5.2](INSTALL.md).
+подписи лежат в манифесте, поэтому переезжают вместе с плагином. Сводка в [INSTALL.md §5.2](voice-opencode-plugin/INSTALL.md).
 
 **Управление озвучкой.** Отдельный режим «Только помеченное (🔈)» — голос произносит только
 то, что помечено меткой 🔈 в начале строки. Так решает ассистент, а не расширение: можно
@@ -64,7 +67,7 @@ opencode serve --hostname 127.0.0.1
 есть `alwaysVoicePrefixes` (строки на «Готово», «Ошибка», «Важно» звучат **всегда**, даже если
 метка забыта) и `neverVoicePatterns` (код, ссылки, пути и команды вслух не читаются, даже если
 метка стоит). Сервер отдаёт манифест на `GET /manifest`, расширение подтягивает его сам.
-Подробности — [INSTALL.md](INSTALL.md#51-манифест-озвучки-что-произносить-а-что-нельзя).
+Подробности — [INSTALL.md](voice-opencode-plugin/INSTALL.md#51-манифест-озвучки-что-произносить-а-что-нельзя).
 
 Команды: `/voice`, `/voice backend [local\|api]`, `/voice lang [ru\|en\|auto]`,
 `/voice device [auto\|gpu\|cpu]`, `/voice doctor [--fix]`, `/voice heal`, `/voice help`.
@@ -139,14 +142,14 @@ bash sync-plugin.sh --check # bundle совпадает с исходникам�
 
 | Файл | О чём |
 |---|---|
-| [`INSTALL.md`](INSTALL.md) | установка, перенос на другую машину, решение проблем |
-| [`FIXES.md`](FIXES.md) | полный итог исправлений V2 + разбор ошибок и их решение |
-| [`V2_MIGRATION.md`](V2_MIGRATION.md) | отчёт о миграции на OpenCode V2, матрица статусов |
-| [`AGENTS.md`](AGENTS.md) | правила работы над кодом, архитектура, источники истины |
-| [`TEST_PLAN.md`](TEST_PLAN.md) | ручные и smoke-проверки |
-| [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md) | скиллы `ovi-*` для диагностики и разработки |
-| [`extension/README.md`](extension/README.md) | расширение Chrome, popup, настройки |
-| [`shared/tts-manifest.json`](shared/tts-manifest.json) | манифест озвучки: маркер, обязательные фразы, запреты, голос |
+| [`INSTALL.md`](voice-opencode-plugin/INSTALL.md) | установка, перенос на другую машину, решение проблем |
+| [`FIXES.md`](voice-opencode-plugin/FIXES.md) | полный итог исправлений V2 + разбор ошибок и их решение |
+| [`V2_MIGRATION.md`](voice-opencode-plugin/V2_MIGRATION.md) | отчёт о миграции на OpenCode V2, матрица статусов |
+| [`AGENTS.md`](voice-opencode-plugin/AGENTS.md) | правила работы над кодом, архитектура, источники истины |
+| [`TEST_PLAN.md`](voice-opencode-plugin/TEST_PLAN.md) | ручные и smoke-проверки |
+| [`SKILLS_GUIDE.md`](voice-opencode-plugin/SKILLS_GUIDE.md) | скиллы `ovi-*` для диагностики и разработки |
+| [`extension/README.md`](voice-opencode-plugin/extension/README.md) | расширение Chrome, popup, настройки |
+| [`shared/tts-manifest.json`](voice-opencode-plugin/shared/tts-manifest.json) | манифест озвучки: маркер, обязательные фразы, запреты, голос |
 
 ## Лицензия
 

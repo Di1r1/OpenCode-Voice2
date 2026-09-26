@@ -3,7 +3,7 @@
 > OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 > **Версия документа:** V2 notes · **Дата среза:** 2026-09-25  
-> **Корень проекта:** `<PROJECT_ROOT>`  
+> **Корень проекта:** `<PROJECT_ROOT>` — каталог `voice-opencode-plugin/` в корне репозитория  
 > **Область:** `.opencode/skills/`, `AGENTS.md`, нативная V2-конфигурация OpenCode
 
 ## 0. Коротко

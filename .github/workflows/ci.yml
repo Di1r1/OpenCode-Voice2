@@ -12,6 +12,10 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # Плагин лежит в подпапке voice-opencode-plugin/, а .github/ — в корне репозитория.
+    defaults:
+      run:
+        working-directory: voice-opencode-plugin
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +24,7 @@ jobs:
         with:
           node-version: '22.23.3'
           cache: npm
+          cache-dependency-path: voice-opencode-plugin/package-lock.json
 
       - name: Установить зависимости
         run: npm ci
@@ -54,13 +59,17 @@ jobs:
           node -e '
             const fs = require("fs");
             const m = JSON.parse(fs.readFileSync("extension/manifest.json", "utf8"));
-            const src = fs.readFileSync("extension/content.js", "utf8");
-            const hits = [...src.matchAll(/content\.js v([0-9.]+) loaded/g)].map(x => x[1]);
-            if (!hits.length) throw new Error("в content.js нет строки версии");
+            const tts = fs.readFileSync("extension/tts.js", "utf8");
+            const content = fs.readFileSync("extension/content.js", "utf8");
+            // content.js печатает версию в рантайме: "content.js v" + TTS_VERSION + " loaded",
+            // поэтому литерала с цифрами в нём нет — сверяем источник TTS_VERSION.
+            const hits = [...tts.matchAll(/TTS_VERSION\s*=\s*"([0-9.]+)"/g)].map(x => x[1]);
+            if (!hits.length) throw new Error("в tts.js нет TTS_VERSION");
             for (const v of hits) {
-              if (v !== m.version) throw new Error("расхождение версий: manifest " + m.version + " vs content.js " + v);
+              if (v !== m.version) throw new Error("расхождение версий: manifest " + m.version + " vs tts.js TTS_VERSION " + v);
             }
+            if (!content.includes("content.js v")) throw new Error("content.js больше не печатает строку content.js v... loaded");
             const match = JSON.stringify(m.content_scripts[0].matches);
             if (match.includes("all_urls")) throw new Error("<all_urls> вернулся в content_scripts.matches");
-            console.log("manifest " + m.version + " OK, matches " + match);
+            console.log("manifest " + m.version + " OK, tts.js TTS_VERSION " + hits[0] + " OK, matches " + match);
           '

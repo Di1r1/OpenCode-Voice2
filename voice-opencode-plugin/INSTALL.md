@@ -31,7 +31,7 @@ sudo apt-get install -y alsa-utils libasound2-plugins
 
 ```bash
 git clone https://github.com/Di1r1/OpenCode-Voice2.git
-cd OpenCode-Voice2
+cd OpenCode-Voice2/voice-opencode-plugin
 
 npm ci            # есть package-lock.json — строго по нему
 # или, если lock-файла нет:  npm install
@@ -148,12 +148,12 @@ opencode plugin list
    **Windows:** `C:\путь\к\OpenCode-Voice2\extension`
    **WSL:** `\\wsl.localhost\<дистрибутив>\путь\к\OpenCode-Voice2\extension`
 
-5. В `chrome://extensions` проверьте: имя **OpenCode Voice**, версия **1.0.36**
+5. В `chrome://extensions` проверьте: имя **OpenCode Voice**, версия **1.0.54**
 
 Консоль на странице OpenCode при загрузке печатает:
 
 ```
-[OpenCode Voice] content.js v1.0.36 loaded
+[OpenCode Voice] content.js v1.0.54 loaded
 ```
 
 Если версия меньше — браузер держит старую копию, нажмите **Reload** у расширения.
@@ -409,7 +409,7 @@ opencode plugin list           # есть ли voice
 
 ```bash
 git clone https://github.com/Di1r1/OpenCode-Voice2.git
-cd OpenCode-Voice2
+cd OpenCode-Voice2/voice-opencode-plugin
 npm ci
 ./setup.sh --all          # зависимости + плагин в конфиге OpenCode
 ./setup.sh --tts          # озвучка (по желанию)
