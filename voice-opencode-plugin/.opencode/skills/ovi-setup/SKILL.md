@@ -9,6 +9,22 @@ description: "Use when installing or onboarding OpenCode Voice V2 on a (new) mac
 изменений). Состав: pip-пакеты → TTS (Piper + голоса) → запись конфига
 OpenCode **с бэкапом** → `sync-plugin.sh` → `doctor.sh`, без вопросов.
 
+## 0. Как установлен сам OpenCode
+
+Способ установки OpenCode на Voice не влияет — плагину всё равно, откуда запущен бинарь.
+Вариантов несколько, и на разных машинах они разные: собственный установщик OpenCode
+(бинарь `~/.opencode/bin/opencode`, каталог `~/.opencode/` обслуживается самим OpenCode),
+глобальный npm (пакет `opencode-ai`), либо вручную положенный бинарь. Проверка одна:
+
+```sh
+opencode --version   # ожидается 2.x; подтверждено на 2.0.15
+```
+
+Обновление и удаление — встроенными командами, независимо от способа установки:
+`opencode upgrade` (или `opencode upgrade v0.1.48` до конкретной версии) и
+`opencode uninstall`. Если версия не 2.x, плагин не загрузится — начинать надо с
+`opencode upgrade`, а не с `setup.sh`.
+
 ## 1. Флаги и автоповедение
 
 | Флаг | Эффект |
