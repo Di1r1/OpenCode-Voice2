@@ -163,20 +163,21 @@ info-сабкоманды; для PTT/file auto-submit call является ч�
 ## Agent workflow
 
 Локальные subagents находятся в `.opencode/agents/` и вызываются как
-`@voice-builder`, `@voice-verifier`, `@voice-code-reviewer` и
-`@voice-security-auditor`. Для текущего V2 root команды и paths в их инструкциях должны
-использовать `<PROJECT_ROOT>` или root-relative варианты.
+`@voice-builder-v2`, `@voice-verifier-v2`, `@voice-code-reviewer-v2` и
+`@voice-security-auditor-v2`. Суффикс `-v2` обязателен: агенты описывают **только** порт на
+OpenCode V2 (`@opencode/plugin` `^2.0.0`, проверено на `2.0.18`) и не возвращают V1
+plugin/TUI API. `<PROJECT_ROOT>` в их инструкциях — это каталог `voice-opencode-plugin/`.
 
 Обязательный pipeline для каждого изменения:
 
 ```text
-@voice-builder → @voice-verifier → @voice-code-reviewer → @voice-security-auditor → commit
+@voice-builder-v2 → @voice-verifier-v2 → @voice-code-reviewer-v2 → @voice-security-auditor-v2 → commit
 ```
 
-`@voice-builder` — единственная write-capable роль; verifier, code-reviewer и security-auditor
-работают read-only и должны выдать `APPROVE` перед commit. `@voice-stt` — optional/local STT
-helper вне обязательного четырёхролевого pipeline. Описание V2 не возвращает V1 plugin/TUI API.
-Уже выполненный ранее docs pipeline этим правилом не отменяется.
+`@voice-builder-v2` — единственная write-capable роль; verifier, code-reviewer и
+security-auditor работают read-only и должны выдать `APPROVE` перед commit. `@voice-stt-v2` —
+optional/local STT helper вне обязательного четырёхролевого pipeline. Уже выполненный ранее
+docs pipeline этим правилом не отменяется.
 
 ## STT, auth и качество
 

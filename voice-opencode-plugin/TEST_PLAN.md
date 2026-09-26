@@ -329,9 +329,12 @@ project cwd и не находит тот же target при service cwd.
 `ovi-extension`, `ovi-models`, `ovi-audio`, `ovi-debug`, `ovi-dev`, `ovi-security`,
 `ovi-tts`, `ovi-setup`. Подключение V2 описано в [`SKILLS_GUIDE.md`](SKILLS_GUIDE.md).
 
-Локальные агенты находятся в `.opencode/agents/`. `@voice-stt` — optional/local helper и не
-входит в обязательный pipeline verifier/reviewer/security. Перед изменениями в областях
-загружаются соответствующие skills; этот проход менял только документацию.
+Локальные агенты находятся в `.opencode/agents/` и названы с суффиксом `-v2`
+(`voice-builder-v2`, `voice-verifier-v2`, `voice-code-reviewer-v2`,
+`voice-security-auditor-v2`, `voice-stt-v2`), потому что описывают только порт на OpenCode V2.
+`@voice-stt-v2` — optional/local helper и не входит в обязательный pipeline
+verifier/reviewer/security. Перед изменениями в областях загружаются соответствующие skills;
+этот проход менял только документацию.
 
 ## Итоговый чек-лист миграции
 
