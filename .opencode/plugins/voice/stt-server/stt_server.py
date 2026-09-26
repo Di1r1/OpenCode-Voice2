@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+# OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 """
 OpenCode Voice STT Server
 Flask + faster-whisper for local speech-to-text.

@@ -1,4 +1,4 @@
-// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 // OpenCode Voice - Popup Script
 
 // Хост сервера: по умолчанию 127.0.0.1, но content.js запоминает хост страницы

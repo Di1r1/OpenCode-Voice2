@@ -1,6 +1,6 @@
 # Навыки (skills) в OpenCode Voice V2: подключение и эксплуатация
 
-> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 > **Версия документа:** V2 notes · **Дата среза:** 2026-09-25  
 > **Корень проекта:** `<PROJECT_ROOT>`  

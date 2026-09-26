@@ -1,4 +1,4 @@
-// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 // Тесты озвучки: cleanForSpeech/helpers.
 //
 // Канон — src/lib/text.ts (его же использует сервер/плагин). Браузерная копия

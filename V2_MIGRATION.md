@@ -4,6 +4,26 @@
 **Корень проекта:** `<PROJECT_ROOT>`  
 **Проверенная версия OpenCode:** `v2.0.15`
 
+## Дополнение от 26 сентября 2026 — hermetic-аудит на SDK 2.0.18
+
+Отчёт ниже описывает состояние на `2.0.15` и не переписывается. Отдельно зафиксирован
+поздний прогон, который его не заменяет:
+
+- `@opencode/plugin` поднят в `package-lock.json` с `2.0.17` до `2.0.18`; диапазон в
+  `package.json` остался `^2.0.0`, так что нижняя граница для потребителей не изменилась;
+- `node_modules` в этом checkout был повреждён — `@opencode/plugin` лежал **0-байтным
+  файлом** вместо каталога; `npm ci` это починил, зависимость стала настоящим каталогом
+  `2.0.18`;
+- `npm ci` → 420 пакетов; `npm run verify` → **exit `0`**: `sync-plugin.sh --check`
+  (20 файлов `OK`), `tsc --noEmit` exit 0, node-тесты **145/145**, pytest **75 collected**;
+- счётчики ниже (93/93, 65 pytest, 98 пакетов, 21 файл) относятся к прогону 24–25 сентября
+  и оставлены как есть;
+- **не перепроверено** на `2.0.18`: перезапуск плагина, PTT, хоткей, TUI и всё, что ниже
+  помечено как «живая сессия». Эти утверждения по-прежнему про `2.0.15`.
+
+Итог: зависимости и hermetic-проверки на `2.0.18` зелёные; live-поведение на `2.0.18`
+не подтверждено.
+
 ## Краткий вывод
 
 Портирование ядра Voice на V2 **частично успешно**: серверный плагин загружается, команды
@@ -109,9 +129,9 @@ On-disk files authoritative для следующей загрузки; automati
 | Семантика результата TUI-команды | **Частично** | V2 `ctx.session.prompt({ sessionID, text, delivery })` отправляет транскрипт в сессию/модели | Текст не вставляется в редактор и model call запускается автоматически |
 | Info-сабкоманды | **Частично** | `backend`, `lang`, `device`, `help`, `doctor`, `heal` отвечают; `svc(...)` проходит через `ctx.session.prompt` | Запрос не пустой, но модель всё равно вызывается без необходимости |
 | Автозапуск/watchdog именно V2 bundle | **Работает** (P0 закрыт в этом проходе) | `server-launcher.ts` ищет `stt-server/stt_server.py` и относительно bundle (`../stt-server/`), и относительно исходников; `test/deploy.test.mjs` проверяет резолв **внутри** bundle из постороннего temp-cwd | Cwd-dependent deployment gap устранён |
-| Самостоятельность V2 bundle | **Работает** (P0 закрыт в этом проходе) | `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`; `bash sync-plugin.sh --check` — exit `0` по всем 21 файлу; `test/deploy.test.mjs` валидирует именно поставленный bundle | Локальная поставка воспроизводима одной проверкой sync |
+| Самостоятельность V2 bundle | **Работает** (P0 закрыт в этом проходе) | `sync-plugin.sh` поставляет entrypoints, `lib/`, `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`; `bash sync-plugin.sh --check` — exit `0` по всем 20 файлам; `test/deploy.test.mjs` валидирует именно поставленный bundle | Локальная поставка воспроизводима одной проверкой sync |
 | Серверный TTS (Piper) | **Работает** | `piper-tts 1.8.0` + голос `ru_RU-irina-medium` (63 МБ) в `~/.local/share/opencode-voice/tts`; health `available=true`; `/speak` → 200, валидный RIFF WAV; CORS с Origin расширения проходит | Озвучка работает; голос подхватывается автоматически, `setup.sh --tts` ставит Piper и голоса |
-| Автономный typecheck в checkout | **Работает** | `npm ci` даёт 98 пакетов и `package-lock.json`; `npm run typecheck` → `✓ зависимости на месте (typescript 5.9.3)`, `tsc --noEmit` exit `0`; `scripts/ensure-deps.mjs` не даёт «тихо зелёному» | Проверка типов автономна и не может молча сорваться |
+| Автономный typecheck в checkout | **Работает** | `npm ci` даёт 420 пакетов и `package-lock.json`; `npm run typecheck` → `✓ зависимости на месте (typescript 5.9.3)`, `tsc --noEmit` exit `0`; `scripts/ensure-deps.mjs` не даёт «тихо зелёному» | Проверка типов автономна и не может молча сорваться |
 | Node prerequisite для test command | **Работает** | `package.json.engines.node` = `>=22.6.0` (реальный минимум для `--experimental-strip-types`); Node 22 живёт в `~/.local/opt/node22`, не в `/tmp` | `wsl --shutdown` чистит `/tmp`, поэтому Node держим в `$HOME`, а не во временном каталоге |
 | Полная автономная V2 migration | **Частично** | P0-блокеры (shell boundary, extension scope, deployment gap), typecheck, TTS и физический хоткей закрыты; остаются UX-разница (auto-submit) и model call для info-сабкоманд | Ядро, безопасность и поставка закрыты; остатки — UX-долг |
 

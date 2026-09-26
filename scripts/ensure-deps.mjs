@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 /**
  * Сторож для typecheck/build.
  *

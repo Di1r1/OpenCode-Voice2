@@ -1,6 +1,6 @@
 # OpenCode Voice
 
-> © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 Голосовой ввод для [OpenCode](https://opencode.ai): нажали кнопку — сказали — текст в
 промпте. Работает в терминале (хоткей), в веб-интерфейсе (кнопка в расширении Chrome) и
@@ -113,8 +113,8 @@ TUI / Chrome ──▶ команда /voice ──▶ плагин (src/index.t
 ## Проверка перед релизом
 
 ```bash
-npm test                    # 93/93 — тесты плагина
-python3 -m pytest -q        # 65 passed — тесты STT-сервера
+npm test                    # 145/145 — тесты плагина
+python3 -m pytest -q        # 75 passed — тесты STT-сервера
 npm run typecheck           # типы, exit 0
 bash sync-plugin.sh --check # bundle совпадает с исходниками
 ```

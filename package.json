@@ -34,12 +34,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Di1r1/OpenCode-Voice.git",
-    "directory": "voice-opencode-plugin"
+    "url": "git+https://github.com/Di1r1/OpenCode-Voice2.git",
+    "directory": "."
   },
-  "homepage": "https://github.com/Di1r1/OpenCode-Voice#readme",
+  "homepage": "https://github.com/Di1r1/OpenCode-Voice2#readme",
   "bugs": {
-    "url": "https://github.com/Di1r1/OpenCode-Voice/issues"
+    "url": "https://github.com/Di1r1/OpenCode-Voice2/issues"
   },
   "publishConfig": {
     "access": "public"

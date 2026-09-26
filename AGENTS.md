@@ -1,6 +1,6 @@
 # OpenCode Voice Plugin — V2 Migration
 
-> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 Документ описывает Voice для OpenCode V2. Подробный срез миграции и матрица статусов находятся
 в [`V2_MIGRATION.md`](V2_MIGRATION.md). Все пути в этом документе начинаются от корня
@@ -26,9 +26,14 @@
 - Серверный TTS **работает**: `piper-tts 1.8.0` + голос `ru_RU-irina-medium` (63 МБ) в
   `~/.local/share/opencode-voice/tts`; `/health` → `available: true`, `/speak` отдаёт WAV.
   Голос подхватывается автоматически, `setup.sh --tts` ставит Piper и голоса.
-- Typecheck **автономен**: зависимости установлены через `npm ci` (98 пакетов,
+- Typecheck **автономен**: зависимости установлены через `npm ci` (420 пакетов,
   `package-lock.json` в репозитории), `npm run typecheck` → `tsc 5.9.3`, exit 0.
   Сторож `scripts/ensure-deps.mjs` роняет скрипт, если зависимостей нет.
+- Hermetic-аудит на `@opencode/plugin 2.0.18` (поднят с `2.0.17`, диапазон в
+  `package.json` остался `^2.0.0`): `npm ci` → 420 пакетов, `npm run verify` → exit `0`,
+  145/145 node-тестов, pytest 75 collected. Утверждения о **живых** сессиях ниже
+  по-прежнему относятся к `2.0.15` — на `2.0.18` перезапуск плагина, PTT, хоткей и TUI
+  не перепроверялись.
 - Репозиторий под git; CI в `.github/workflows/ci.yml`.
 - Полная автономная V2 migration **не завершена**: остаются разница UX (auto-submit вместо
   вставки в редактор) и нежелательный model call для info-сабкоманд.
@@ -206,7 +211,7 @@ Cwd-dependent deployment gap закрыт:
   ресурсы резолвятся внутри `.opencode/plugins/voice/`, а Python-путь `parents[1]/shared`
   совпадает с TS-путём `../shared`.
 
-`bash sync-plugin.sh --check` подтверждает совпадение 21 файла и завершается exit `0`.
+`bash sync-plugin.sh --check` подтверждает совпадение 20 файлов и завершается exit `0`.
 
 Что всё ещё нельзя объявлять готовым: UX-разница (auto-submit вместо вставки в редактор)
 и нежелательный model call для info-сабкоманд. Typecheck и серверный TTS закрыты.
@@ -230,17 +235,17 @@ TUI-клиент может сохранять прежнее состояние
 cd <PROJECT_ROOT>
 npm run dev              # фактический script: opencode
 bash sync-plugin.sh --check
-PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test                 # текущий аудит: 93/93
-python3 -m pytest        # текущий аудит: 65 collected, exit 0
+PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test                 # текущий аудит: 145/145
+python3 -m pytest        # текущий аудит: 75 collected, exit 0
 ```
 
 - `npm run dev` запускает `opencode`; отдельный аргумент `--plugin .` в текущем `package.json`
   не используется.
 - TUI plugin и server plugin нужно перезапустить/перезагрузить после sync или config-time
   изменений.
-- `PATH=$HOME/.local/opt/node22/bin:$PATH npm test` — Node suite `node --experimental-strip-types --test`; текущий аудит: 93/93 на Node `22.23.3`. Node лежит в `~/.local/opt/node22` — НЕ в `/tmp`: `wsl --shutdown` чистит `/tmp` и уносит Node вместе с ним. `package.json.engines.node` поднят до `>=22.6.0` (реальный prerequisite флага `--experimental-strip-types`).
-- `npm run verify` — sync --check + типы + 93 теста + pytest одной командой.
-- `pytest` — hermetic server suite; текущий аудит: 65 collected, exit 0; микрофон и модель не нужны.
+- `PATH=$HOME/.local/opt/node22/bin:$PATH npm test` — Node suite `node --experimental-strip-types --test`; текущий аудит: 145/145 на Node `22.23.1`. Node лежит в `~/.local/opt/node22` — НЕ в `/tmp`: `wsl --shutdown` чистит `/tmp` и уносит Node вместе с ним. `package.json.engines.node` поднят до `>=22.6.0` (реальный prerequisite флага `--experimental-strip-types`).
+- `npm run verify` — sync --check + типы + 145 тестов + pytest одной командой.
+- `pytest` — hermetic server suite; текущий аудит: 75 collected, exit 0; микрофон и модель не нужны.
 - TypeScript: `npm run typecheck` в этом checkout **автономен** — `node_modules` установлен
   через `npm ci`, `package-lock.json` в репозитории, реально отрабатывает `tsc 5.9.3` с
   exit 0. Раньше скрипт печатал «tsc: not found» и при этом завершался кодом 0 — тихая
@@ -249,7 +254,7 @@ python3 -m pytest        # текущий аудит: 65 collected, exit 0
   Историческая внешняя проверка запускала Node 22 с
   external-resolution config `<EXTERNAL_TYPECHECK_CONFIG>` (typeRoots/paths к V1
   dependencies), завершилась exit `0`; это не автономная V2-проверка.
-- `sync-plugin.sh --check` проверяет все 19 поставляемых файлов (entrypoints, `lib/`,
+- `sync-plugin.sh --check` проверяет все 20 поставляемых файлов (entrypoints, `lib/`,
   `stt-server/`, `shared/`, `doctor.sh`, `fix-mic.sh`) и возвращает exit `1` при расхождении.
 
 Подробный ручной и smoke-план: [`TEST_PLAN.md`](TEST_PLAN.md).

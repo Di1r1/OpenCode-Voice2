@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+# OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 #
 # Validate GitHub Actions workflow files before pushing.
 # Catches invalid YAML (e.g. an unquoted colon in a step name), which makes

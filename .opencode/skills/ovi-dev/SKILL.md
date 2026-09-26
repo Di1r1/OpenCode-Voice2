@@ -52,7 +52,7 @@ The check loop has important limits:
   A live check of the *running* process path against the real service cwd is still worth doing.
 - `npm run dev` runs the current package script `opencode` (there is no `--plugin .` argument in
   the current script).
-- `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test` is recorded at **93/93** on Node
+- `PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test` is recorded at **145/145** on Node
   `22.23.3` (13 of them cover the shell argv boundary, 4 the shipped bundle); `pytest` at **65/65**. Default Node `v18` is not sufficient for the
   `--experimental-strip-types` test script, and `package.json.engines.node >=20` does not
   describe the actual prerequisite; engines/CI correction is a future code/config task.

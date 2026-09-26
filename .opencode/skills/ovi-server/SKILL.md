@@ -92,5 +92,5 @@ PULSE_SERVER=unix:/mnt/wslg/PulseServer python3 -u stt-server/stt_server.py --po
 ## Tests
 
 Hermetic pytest suite (no mic, no model): `cd <PROJECT_ROOT> && python3 -m pytest -q`
-(`stt-server/tests/test_server.py`, 65 tests; current audit: 65 collected, exit 0). `pytest.ini`
+(`stt-server/tests/test_server.py`, 75 tests; current audit: 75 collected, exit 0). `pytest.ini`
 lives in `<PROJECT_ROOT>/`.

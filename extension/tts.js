@@ -1,4 +1,4 @@
-// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+// OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 // Озвучка ответов ассистента (аддитивный, по умолчанию выключенный слой).
 //
 // Источник текста — same-origin API web-UI: живой поток GET /api/event (SSE,

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OpenCode Voice V2 — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+# OpenCode Voice V2 — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 # Синхронизирует исходники плагина в загружаемый bundle .opencode/plugins/voice/.
 #
 # Копируются:

@@ -1,6 +1,6 @@
 # Установка OpenCode Voice
 
-> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 Полная инструкция для чистой машины. Проверено на OpenCode **v2.0.15**, WSL2 (Ubuntu) и
 Windows. Команды выполнять **из корня проекта**.
@@ -329,8 +329,8 @@ export PULSE_SERVER=unix:/mnt/wslg/PulseServer   # уже делает launcher
 ## 7. Проверка: всё работает?
 
 ```bash
-npm test                 # 93/93
-python3 -m pytest -q     # 65 passed
+npm test                 # 145/145
+python3 -m pytest -q     # 75 passed
 bash sync-plugin.sh --check   # OK по всем файлам bundle
 npm run typecheck        # exit 0
 ```

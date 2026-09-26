@@ -1,6 +1,6 @@
 # Что было сделано: полный итог
 
-> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 Хронология всех исправлений миграции V1 → V2 и доводки до продакшена. Каждый пункт — с
 причиной, а не только с результатом: почти все поломки выглядели одинаково снаружи

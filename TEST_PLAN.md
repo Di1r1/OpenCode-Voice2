@@ -1,6 +1,6 @@
 # План тестирования OpenCode Voice V2
 
-> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+> OpenCode Voice — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 
 **Корень всех команд:** `<PROJECT_ROOT>`  
 **Проверенная среда:** OpenCode `v2.0.15`  
@@ -17,11 +17,11 @@
 ```bash
 cd <PROJECT_ROOT>
 bash sync-plugin.sh --check
-PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test                 # текущий аудит: 93/93
-python3 -m pytest        # текущий аудит: 65 passed, exit 0
+PATH=/tmp/node-v22.23.3-linux-x64/bin:$PATH npm test                 # текущий аудит: 145/145
+python3 -m pytest        # текущий аудит: 75 passed, exit 0
 ```
 
-`sync-plugin.sh --check` проверяет соответствие всех 19 поставляемых файлов:
+`sync-plugin.sh --check` проверяет соответствие всех 20 поставляемых файлов:
 
 - `src/index.ts` → `.opencode/plugins/voice/index.ts`;
 - `src/tui.tsx` → `.opencode/plugins/voice/tui.tsx`;
@@ -285,7 +285,7 @@ bash sync-plugin.sh --check
 - [ ] команды `voice` и `v` видны;
 - [ ] `/voice` записывает и отправляет transcript в сессию/модель;
 - [ ] extension version соответствует `1.0.35` (и расширение перезагружено в Chrome);
-- [ ] `bash sync-plugin.sh --check` печатает `OK` по всем 21 файлу;
+- [ ] `bash sync-plugin.sh --check` печатает `OK` по всем 20 файлам;
 - [ ] фактический `stt_server.py` запущен из V2 path, а не из V1 path.
 
 ## 9. Deployment smoke (cwd-независимость, P0 закрыт)

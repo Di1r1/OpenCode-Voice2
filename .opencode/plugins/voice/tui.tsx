@@ -1,4 +1,4 @@
-// OpenCode Voice V2 (CLI) — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice
+// OpenCode Voice V2 (CLI) — © 2026 Di1r1 · MIT · https://github.com/Di1r1/OpenCode-Voice2
 // TUI-часть: хоткей <leader>v и индикатор 🎤 вызывают серверную команду /voice.
 // V2 CLI API: https://opencode.ai/v2/docs/build/plugins/cli
 // Запись/распознавание выполняет серверная часть (src/index.ts).
