@@ -1,7 +1,7 @@
 ---
 description: Audits token, CORS, bind, shell-injection and secrets hygiene without editing
 mode: subagent
-model: opencode/gpt-5.1-codex
+model: gpt-5.1-codex
 permissions:
   - action: "*"
     resource: "*"

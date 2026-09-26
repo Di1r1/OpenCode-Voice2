@@ -1,7 +1,7 @@
 ---
 description: Reviews code changes for bugs, plugin-loader quirks and TS/Python parity without editing
 mode: subagent
-model: opencode/gpt-5.1-codex
+model: gpt-5.1-codex
 permissions:
   - action: "*"
     resource: "*"

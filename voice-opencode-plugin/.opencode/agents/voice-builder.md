@@ -1,7 +1,7 @@
 ---
 description: Builds and extends the opencode-voice plugin (TypeScript, OpenCode plugin SDK, STT backends)
 mode: subagent
-model: opencode/gpt-5.1-codex
+model: gpt-5.1-codex
 permissions:
   - action: "*"
     resource: "*"

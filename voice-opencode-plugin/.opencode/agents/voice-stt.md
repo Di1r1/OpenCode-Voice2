@@ -1,7 +1,7 @@
 ---
 description: Inspects speech-to-text code, configuration, and logs for the opencode-voice plugin without editing or running live workflows
 mode: subagent
-model: opencode/gpt-5.1-codex
+model: gpt-5.1-codex
 permissions:
   - action: "*"
     resource: "*"

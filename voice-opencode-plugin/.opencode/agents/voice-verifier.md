@@ -1,7 +1,7 @@
 ---
 description: Runs the full hermetic test matrix and reports pass/fail without editing
 mode: subagent
-model: opencode/gpt-5.1-codex
+model: gpt-5.1-codex
 permissions:
   - action: "*"
     resource: "*"
